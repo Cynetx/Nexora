@@ -1,0 +1,620 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'package:flutter/material.dart' show Color;
+import 'store.dart';
+
+const String _sbBuildUrl = String.fromEnvironment('SB_URL', defaultValue: 'https://xvisvcpvfgzbkjrmhvke.supabase.co');
+const String _sbBuildKey = String.fromEnvironment('SB_KEY');
+// اگر داخل اپ «کد اتصال» وارد شده باشد همان استفاده می‌شود، وگرنه مقدار زمان ساخت (builder)
+String get sbUrl => Store.sbUrl.isNotEmpty ? Store.sbUrl : _sbBuildUrl;
+String get sbKey => Store.sbKey.isNotEmpty ? Store.sbKey : _sbBuildKey.trim();
+
+class Geo {
+  final String ip, country, code;
+  Geo(this.ip, this.country, this.code);
+
+  String get flag {
+    if (code.length != 2) return '🌐';
+    final a = code.toUpperCase().codeUnits;
+    return String.fromCharCodes([0x1F1E6 + a[0] - 65, 0x1F1E6 + a[1] - 65]);
+  }
+}
+
+String flagOf(String code) {
+  if (code.length != 2) return '🌐';
+  final a = code.toUpperCase().codeUnits;
+  return String.fromCharCodes([0x1F1E6 + a[0] - 65, 0x1F1E6 + a[1] - 65]);
+}
+
+class IpQualityReport {
+  final String ip;
+  final String country;
+  final String code;
+  final String city;
+  final String isp;
+  final String org;
+  final String asName;
+  final String timezone;
+  final bool isHosting;
+  final bool isProxy;
+  final int fraudScore;
+  final bool timezoneMatch;
+  final String clientTimezone;
+  final String note;
+
+  const IpQualityReport({
+    required this.ip,
+    required this.country,
+    required this.code,
+    required this.city,
+    required this.isp,
+    required this.org,
+    required this.asName,
+    required this.timezone,
+    required this.isHosting,
+    required this.isProxy,
+    required this.fraudScore,
+    required this.timezoneMatch,
+    required this.clientTimezone,
+    required this.note,
+  });
+
+  bool get isResidential => !isHosting;
+  String get flag => flagOf(code);
+
+  String get riskLabel {
+    if (fraudScore <= 25) return 'عالی و کم‌خطر (مناسب ثبت‌نام آمازون و پی‌پال)';
+    if (fraudScore <= 70) return 'متوسط (مناسب وب‌گردی، هوش مصنوعی و یوتیوب)';
+    return 'ریسک بالا (دیتاسنتری - احتمال نیاز به احراز هویت اضافی)';
+  }
+
+  Color get riskColor {
+    if (fraudScore <= 25) return const Color(0xFF29E07F);
+    if (fraudScore <= 70) return const Color(0xFFFFB86B);
+    return const Color(0xFFFF5B5B);
+  }
+}
+
+// عنوان کانفیگ: نام یا لوکیشن (پرچم + کشور). آیپی/آدرس سرور هرگز نمایش داده نمی‌شود.
+String cfgTitle(Map<String, dynamic> c) {
+  final n = '${c['name'] ?? ''}'.trim();
+  final isIp = RegExp(r'^[\d.:\[\]a-fA-F]+$').hasMatch(n) && n.contains(RegExp(r'[.:]'));
+  if (n.isNotEmpty && !isIp) return n;
+  final co = '${c['country'] ?? ''}'.trim();
+  if (co.isNotEmpty) return '${flagOf('${c['code'] ?? ''}')} $co';
+  final g = Store.geoCache[Api.hostOf('${c['link'] ?? ''}')];
+  if (g is List && g.length == 2 && '${g[0]}'.isNotEmpty) return '${flagOf('${g[1]}')} ${g[0]}';
+  return 'در حال تشخیص لوکیشن...';
+}
+
+class Api {
+  static Future<dynamic> _request(String method, String url,
+      {Map<String, dynamic>? body, String? proxy, int timeout = 15}) async {
+    final c = HttpClient();
+    c.connectionTimeout = const Duration(seconds: 10);
+    if (proxy != null) c.findProxy = (_) => 'PROXY $proxy';
+    try {
+      final r = await c.openUrl(method, Uri.parse(url));
+      r.headers.set('content-type', 'application/json');
+      if (body != null) r.add(utf8.encode(jsonEncode(body)));
+      final res = await r.close().timeout(Duration(seconds: timeout));
+      final text = await res.transform(utf8.decoder).join();
+      if (res.statusCode >= 400) throw HttpException('${res.statusCode}');
+      return text.isEmpty ? null : jsonDecode(text);
+    } finally {
+      c.close(force: true);
+    }
+  }
+
+  static Future<dynamic> _sb(String method, String path, {Object? body, int timeout = 15}) async {
+    if (sbKey.isEmpty) throw const HttpException('no key');
+    final c = HttpClient();
+    c.connectionTimeout = const Duration(seconds: 10);
+    try {
+      final r = await c.openUrl(method, Uri.parse('$sbUrl/rest/v1/$path'));
+      r.headers.set('apikey', sbKey);
+      if (sbKey.startsWith('eyJ')) r.headers.set('authorization', 'Bearer $sbKey');
+      r.headers.set('content-type', 'application/json');
+      r.headers.set('accept', 'application/json');
+      if (body != null) r.add(utf8.encode(jsonEncode(body)));
+      final res = await r.close().timeout(Duration(seconds: timeout));
+      final text = await res.transform(utf8.decoder).join();
+      if (res.statusCode >= 400) throw HttpException('${res.statusCode} $text');
+      return text.isEmpty ? null : jsonDecode(text);
+    } finally {
+      c.close(force: true);
+    }
+  }
+
+  static Map<String, dynamic> _cfg(Map e) => {
+        'id': '${e['id']}',
+        'name': '${e['name'] ?? ''}',
+        'quotaGb': e['quota_gb'] ?? 0,
+        'expires': '${e['expires'] ?? ''}',
+        'link': '${e['link'] ?? ''}',
+        'protocol': '${e['protocol'] ?? ''}',
+        'transport': '${e['transport'] ?? ''}',
+        'country': '${e['country'] ?? ''}',
+        'code': '${e['code'] ?? ''}',
+      };
+
+  static Future<Map<String, dynamic>?> fetchConfig({String? id}) async {
+    if (!await sync()) return null;
+    final l = Store.configs.value;
+    if (l.isEmpty) return null;
+    if (id != null && id.isNotEmpty) {
+      for (final c in l) {
+        if ('${c['id']}' == id) return c;
+      }
+    }
+    return l.first;
+  }
+
+  static const String _cols = 'configs?select=id,name,quota_gb,expires,link,protocol,transport,country,code&enabled=eq.true&order=created_at.asc&limit=500';
+
+  static String _sig(List<Map<String, dynamic>> l) => l.map((e) => '${e['id']}|${e['link']}|${e['name']}|${e['quotaGb']}|${e['expires']}').join(',');
+
+  // بررسی بی‌صدا و سریع؛ حذف/تغییر کانفیگ از اپ ادمین بلافاصله روی همه‌ی کاربران اعمال می‌شود
+  static bool _polling = false;
+  static Future<void> pollConfigs() async {
+    if (_polling) return;
+    _polling = true;
+    try {
+      final r = await _sb('GET', _cols, timeout: 8);
+      final list = (r as List).map((e) => _cfg(e as Map)).toList();
+      if (_sig(list) == _sig(Store.configs.value)) return;
+      await Store.setConfigs(list);
+      if (list.isNotEmpty) unawaited(fillGeo());
+    } catch (_) {
+    } finally {
+      _polling = false;
+    }
+  }
+
+  static Future<bool> sync() async {
+    unawaited(event({'type': 'hello'})); // کاربر حتی اگر خواندن کانفیگ‌ها شکست خورد ثبت شود
+    try {
+      final r = await _sb('GET',
+          'configs?select=id,name,quota_gb,expires,link,protocol,transport,country,code&enabled=eq.true&order=created_at.asc&limit=500');
+      final list = (r as List).map((e) => _cfg(e as Map)).toList();
+      event({'type': 'hello'});
+      if (list.isEmpty) {
+        await Store.setConfigs([]);
+        return true;
+      }
+      await Store.setConfigs(list);
+      unawaited(fillGeo());
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> reach({String? proxy}) async {
+    for (final u in ['http://cp.cloudflare.com/generate_204', 'https://www.gstatic.com/generate_204']) {
+      try {
+        await _request('GET', u, proxy: proxy, timeout: 8);
+        return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  static Future<List<Map<String, dynamic>>> servers() async {
+    await sync();
+    return Store.configs.value;
+  }
+
+  static Future<void> event(Map<String, dynamic> d) async {
+    try {
+      await _sb('POST', 'rpc/report_event', body: {
+        'p_device': Store.deviceId,
+        'p_platform': Platform.operatingSystem,
+        'p_type': '${d['type'] ?? 'hello'}',
+        'p_session': '${d['session'] ?? ''}',
+        'p_protocol': '${d['protocol'] ?? ''}',
+        'p_transport': '${d['transport'] ?? ''}',
+        'p_country': '${d['country'] ?? ''}',
+        'p_config': '${d['configId'] ?? ''}',
+        'p_up': (d['up'] as num?)?.toInt() ?? 0,
+        'p_down': (d['down'] as num?)?.toInt() ?? 0,
+        'p_seconds': (d['seconds'] as num?)?.toInt() ?? 0,
+      }, timeout: 10);
+    } catch (_) {}
+  }
+
+  // گزارش آمار اکانت‌های Firefox برای پنل ادمین (ایمیل ماسک‌شده؛ بی‌صدا و بدون خطا)
+  static Future<void> reportFirefox(List<Map<String, dynamic>> accounts) async {
+    try {
+      await _sb('POST', 'rpc/report_firefox', body: {'p_device': Store.deviceId, 'p_accounts': accounts}, timeout: 10);
+    } catch (_) {}
+  }
+
+  static Future<void> forgetFirefox(String accId) async {
+    try {
+      await _sb('POST', 'rpc/forget_firefox', body: {'p_device': Store.deviceId, 'p_acc': accId}, timeout: 10);
+    } catch (_) {}
+  }
+
+  // تنظیمات عمومی برنامه که از پنل ادمین ذخیره می‌شود (مثلاً github_token برای خواندن ریلیزها)
+  static Future<String> appSetting(String key) async {
+    try {
+      final r = await _sb('POST', 'rpc/get_app_setting', body: {'p_key': key}, timeout: 8);
+      return r == null ? '' : '$r'.trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static Future<int> pingLink(String link, {int timeoutSec = 4}) async {
+    try {
+      String host;
+      int port;
+      if (link.startsWith('vmess://')) {
+        final raw = link.substring(8).split('#').first;
+        final m = jsonDecode(utf8.decode(base64.decode(base64.normalize(raw)))) as Map;
+        host = '${m['add']}';
+        port = int.parse('${m['port']}');
+      } else {
+        final m = RegExp(r'@(\[[^\]]+\]|[^:/?#@]+):(\d+)').firstMatch(link);
+        if (m == null) return -1;
+        host = m.group(1)!.replaceAll(RegExp(r'[\[\]]'), '');
+        port = int.parse(m.group(2)!);
+      }
+      final sw = Stopwatch()..start();
+      final s = await Socket.connect(host, port, timeout: Duration(seconds: timeoutSec));
+      sw.stop();
+      s.destroy();
+      return sw.elapsedMilliseconds;
+    } catch (_) {
+      return -1;
+    }
+  }
+
+  // پینگ معتبر: بین ۱ تا ۳۰۰۰ میلی‌ثانیه. صفر، منفی یا بیشتر از ۳ ثانیه یعنی نامعتبر.
+  static bool validPing(int ms) => ms >= 1 && ms <= 3000;
+
+  // پینگ واقعی (دو اتصال TCP پشت سر هم به پورت سرور)؛ اگر هرکدام شکست بخورد یا عدد نامعتبر باشد -1
+  static Future<int> realPing(String link, {int timeoutSec = 3}) async {
+    final a = await pingLink(link, timeoutSec: timeoutSec);
+    if (!validPing(a)) return -1;
+    final b = await pingLink(link, timeoutSec: timeoutSec);
+    if (!validPing(b)) return -1;
+    return min(a, b);
+  }
+
+  // پینگ واقعی (Relay): یک درخواست HTTP کامل از داخل پراکسی/هسته‌ی کانفیگ؛ نه TCP ساده.
+  // زمان کل درخواست تا رسیدن پاسخ generate_204 به میلی‌ثانیه، یا -1 اگر شکست خورد.
+  // سریع: پینگ بالای ۳ ثانیه ویلید نیست، پس Timeout فقط ۴ ثانیه است؛ آدرس دوم (پشتیبان) فقط اگر اولی
+  // ~۹۰۰ms جواب نداد موازی شروع می‌شود و هر کدام زودتر جواب داد برنده است (به‌جای ۸+۸ ثانیه انتظار پشت‌سرهم).
+  static Future<int> delayVia(String proxy, {int timeoutSec = 4}) {
+    const urls = ['http://cp.cloudflare.com/generate_204', 'http://www.gstatic.com/generate_204'];
+    final done = Completer<int>();
+    var failed = 0;
+    void start(String u) {
+      final sw = Stopwatch()..start();
+      _request('GET', u, proxy: proxy, timeout: timeoutSec).then<void>((_) {
+        if (!done.isCompleted) done.complete(max(1, sw.elapsedMilliseconds));
+      }, onError: (Object _) {
+        failed++;
+        if (failed >= urls.length && !done.isCompleted) done.complete(-1);
+      });
+    }
+
+    start(urls[0]);
+    Timer(const Duration(milliseconds: 900), () {
+      if (!done.isCompleted) start(urls[1]);
+    });
+    return done.future;
+  }
+
+  // تأخیر واقعی اینترنت از داخل تونل (میلی‌ثانیه) یا -1
+  static Future<int> reachMs({String? proxy}) async {
+    for (final u in ['http://cp.cloudflare.com/generate_204', 'https://www.gstatic.com/generate_204']) {
+      final sw = Stopwatch()..start();
+      try {
+        await _request('GET', u, proxy: proxy, timeout: 8);
+        sw.stop();
+        return max(1, sw.elapsedMilliseconds);
+      } catch (_) {}
+    }
+    return -1;
+  }
+
+  static String hostOf(String link) {
+    try {
+      if (link.startsWith('vmess://')) {
+        final raw = link.substring(8).split('#').first;
+        final m = jsonDecode(utf8.decode(base64.decode(base64.normalize(raw)))) as Map;
+        return '${m['add']}';
+      }
+      final m = RegExp(r'@(\[[^\]]+\]|[^:/?#@]+):(\d+)').firstMatch(link);
+      return m == null ? '' : m.group(1)!.replaceAll(RegExp(r'[\[\]]'), '');
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static bool _filling = false;
+  static Future<void> fillGeo() async {
+    if (_filling) return;
+    _filling = true;
+    try {
+      final list = Store.configs.value;
+      final need = [
+        for (final c in list)
+          if ('${c['country'] ?? ''}'.isEmpty) c
+      ];
+      if (need.isEmpty) return;
+      final cache = Store.geoCache;
+      final hosts = <String>{for (final c in need) hostOf('${c['link']}')}..remove('');
+      final todo = hosts.where((h) => !cache.containsKey(h)).take(30).toList();
+      for (var i = 0; i < todo.length; i += 5) {
+        await Future.wait(todo.sublist(i, min(i + 5, todo.length)).map((h) async {
+          try {
+            final m = await _request('GET', 'https://ipwho.is/${Uri.encodeComponent(h)}', timeout: 8) as Map;
+            if (m['success'] != false && '${m['country'] ?? ''}'.isNotEmpty) {
+              cache[h] = ['${m['country']}', '${m['country_code'] ?? ''}'];
+            }
+          } catch (_) {}
+        }));
+      }
+      await Store.setGeoCache(cache);
+      var changed = false;
+      final out = <Map<String, dynamic>>[];
+      for (final c in list) {
+        final x = Map<String, dynamic>.from(c);
+        final g = cache[hostOf('${c['link']}')];
+        if ('${x['country'] ?? ''}'.isEmpty && g is List && g.length == 2) {
+          x['country'] = '${g[0]}';
+          x['code'] = '${g[1]}';
+          changed = true;
+        }
+        out.add(x);
+      }
+      if (changed) await Store.setConfigs(out);
+    } catch (_) {
+    } finally {
+      _filling = false;
+    }
+  }
+
+  static Geo? _parseGeo(int k, Map m) {
+    String t(Object? v) => v == null ? '' : '$v'.trim();
+    String ip = '', name = '', code = '';
+    switch (k) {
+      case 0:
+        if (m['success'] == false) return null;
+        ip = t(m['ip']); name = t(m['country']); code = t(m['country_code']);
+        break;
+      case 1:
+        if (m['error'] == true) return null;
+        ip = t(m['ip']); name = t(m['country_name']); code = t(m['country_code']);
+        break;
+      case 2:
+        if (t(m['status']) == 'fail') return null;
+        ip = t(m['query']); name = t(m['country']); code = t(m['countryCode']);
+        break;
+      case 3:
+        ip = t(m['ip']); name = t(m['country']); code = t(m['cc']);
+        break;
+      case 4:
+        ip = t(m['ipAddress']); name = t(m['countryName']); code = t(m['countryCode']);
+        break;
+      case 5:
+        if (m['success'] == false) return null;
+        ip = t(m['ip']); name = t(m['country']); code = t(m['country_code']);
+        break;
+      default:
+        ip = t(m['ip']); code = t(m['country']);
+        if (code.length != 2) return null;
+    }
+    if (code.length != 2 && name.isEmpty) return null;
+    if (code.length != 2) code = '';
+    if (name.isEmpty || name.length == 2) name = code.isEmpty ? '' : code.toUpperCase();
+    if (name.isEmpty) return null;
+    return Geo(ip, name, code.toUpperCase());
+  }
+
+  static const List<String> _geoUrls = [
+    'https://ipwho.is/',
+    'https://ipapi.co/json/',
+    'http://ip-api.com/json/?fields=status,country,countryCode,query',
+    'https://api.myip.com',
+    'https://freeipapi.com/api/json',
+    'https://ipwhois.app/json/',
+    'https://ipinfo.io/json',
+  ];
+
+  // تشخیص کشور: چند سرویس به‌صورت پله‌ای و موازی (هر ۱.۲ ثانیه یک سرویس جدید)؛ اولین پاسخ معتبر برنده است.
+  static Future<Geo?> _geoOnce(String? proxy) {
+    final done = Completer<Geo?>();
+    var failed = 0;
+    final timers = <Timer>[];
+    void start(int k) {
+      _request('GET', _geoUrls[k], proxy: proxy, timeout: 7).then<void>((r) {
+        final g = r is Map ? _parseGeo(k, r) : null;
+        if (g != null) {
+          if (!done.isCompleted) done.complete(g);
+        } else {
+          failed++;
+        }
+      }, onError: (Object _) {
+        failed++;
+      }).whenComplete(() {
+        if (failed >= _geoUrls.length && !done.isCompleted) done.complete(null);
+      });
+    }
+
+    for (var k = 0; k < _geoUrls.length; k++) {
+      if (k == 0) {
+        start(0);
+      } else {
+        timers.add(Timer(Duration(milliseconds: 1200 * k), () {
+          if (!done.isCompleted) start(k);
+        }));
+      }
+    }
+    return done.future.timeout(const Duration(seconds: 22), onTimeout: () => null).whenComplete(() {
+      for (final t in timers) {
+        t.cancel();
+      }
+    });
+  }
+
+  static Future<Geo?> geo({String? proxy, int attempts = 3}) async {
+    for (var i = 0; i < attempts; i++) {
+      try {
+        final g = await _geoOnce(proxy);
+        if (g != null) return g;
+      } catch (_) {}
+      await Future.delayed(Duration(milliseconds: 700 * (i + 1)));
+    }
+    return null;
+  }
+
+  /// استعلام نمره ریسک، اصالت آی‌پی (خانگی/دیتاسنتر)، ASN و تطابق منطقه زمانی ویژه آمازون و جمینای
+  static Future<IpQualityReport?> inspectIpQuality({String? proxy}) async {
+    try {
+      final r = await _request(
+        'GET',
+        'http://ip-api.com/json/?fields=status,message,country,countryCode,regionName,city,zip,timezone,isp,org,as,query,proxy,hosting',
+        proxy: proxy,
+        timeout: 10,
+      );
+      if (r is Map && '${r['status']}' == 'success') {
+        final ip = '${r['query'] ?? ''}';
+        final country = '${r['country'] ?? ''}';
+        final code = '${r['countryCode'] ?? ''}'.toUpperCase();
+        final city = '${r['city'] ?? ''}';
+        final isp = '${r['isp'] ?? ''}';
+        final org = '${r['org'] ?? ''}';
+        final asName = '${r['as'] ?? ''}';
+        final tz = '${r['timezone'] ?? ''}';
+        final isHosting = r['hosting'] == true;
+        final isProxy = r['proxy'] == true;
+
+        var score = 10;
+        if (isHosting) score += 60;
+        if (isProxy) score += 15;
+        final checkText = '$isp $org $asName'.toLowerCase();
+        if (checkText.contains('amazon') ||
+            checkText.contains('aws') ||
+            checkText.contains('hetzner') ||
+            checkText.contains('digitalocean') ||
+            checkText.contains('ovh') ||
+            checkText.contains('contabo') ||
+            checkText.contains('linode') ||
+            checkText.contains('vultr') ||
+            checkText.contains('google') ||
+            checkText.contains('azure') ||
+            checkText.contains('m247')) {
+          score += 15;
+        }
+        score = score.clamp(0, 100);
+
+        final clientOffset = DateTime.now().timeZoneOffset;
+        final clientSign = clientOffset.isNegative ? '-' : '+';
+        final clientHours = clientOffset.inHours.abs().toString().padLeft(2, '0');
+        final clientMins = (clientOffset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+        final clientTzStr = 'UTC$clientSign$clientHours:$clientMins';
+
+        var match = true;
+        if (clientOffset.inHours == 3 && (clientOffset.inMinutes % 60) == 30 && code != 'IR') {
+          match = false;
+        }
+
+        String note = '';
+        if (isHosting) {
+          note = 'این آی‌پی از نوع دیتاسنتر است. برای وب‌گردی عالی است؛ اما در ثبت‌نام بدون کارت آمازون ممکن است تأیید اضافی بخواهد.';
+        } else {
+          note = 'این آی‌پی از نوع خانگی (Residential) است؛ کاملاً کم‌خطر و مناسب برای آمازون، پی‌پال و جمینای.';
+        }
+        if (!match) {
+          note += '\n⚠️ دقت: ساعت سیستم شما با موقعیت سرور همگام نیست. برای ثبت‌نام آمازون، ساعت ویندوز را روی ساعت سرور تنظیم کنید.';
+        }
+
+        return IpQualityReport(
+          ip: ip,
+          country: country,
+          code: code,
+          city: city,
+          isp: isp,
+          org: org,
+          asName: asName,
+          timezone: tz,
+          isHosting: isHosting,
+          isProxy: isProxy,
+          fraudScore: score,
+          timezoneMatch: match,
+          clientTimezone: clientTzStr,
+          note: note,
+        );
+      }
+    } catch (_) {}
+
+    try {
+      final m = await _request('GET', 'https://ipwho.is/', proxy: proxy, timeout: 8);
+      if (m is Map && m['success'] == true) {
+        final ip = '${m['ip'] ?? ''}';
+        final country = '${m['country'] ?? ''}';
+        final code = '${m['country_code'] ?? ''}'.toUpperCase();
+        final city = '${m['city'] ?? ''}';
+        final conn = (m['connection'] as Map?) ?? {};
+        final isp = '${conn['isp'] ?? ''}';
+        final org = '${conn['org'] ?? ''}';
+        final asName = 'AS${conn['asn'] ?? ''} ${conn['org'] ?? ''}';
+        final tzMap = (m['timezone'] as Map?) ?? {};
+        final tz = '${tzMap['id'] ?? ''}';
+
+        final checkText = '$isp $org $asName'.toLowerCase();
+        final isHosting = checkText.contains('amazon') ||
+            checkText.contains('aws') ||
+            checkText.contains('hetzner') ||
+            checkText.contains('digitalocean') ||
+            checkText.contains('ovh') ||
+            checkText.contains('contabo') ||
+            checkText.contains('linode') ||
+            checkText.contains('vultr') ||
+            checkText.contains('google') ||
+            checkText.contains('hosting') ||
+            checkText.contains('datacenter');
+
+        final score = isHosting ? 75 : 15;
+        final clientOffset = DateTime.now().timeZoneOffset;
+        final clientSign = clientOffset.isNegative ? '-' : '+';
+        final clientHours = clientOffset.inHours.abs().toString().padLeft(2, '0');
+        final clientMins = (clientOffset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+        final clientTzStr = 'UTC$clientSign$clientHours:$clientMins';
+
+        var match = true;
+        if (clientOffset.inHours == 3 && (clientOffset.inMinutes % 60) == 30 && code != 'IR') {
+          match = false;
+        }
+
+        return IpQualityReport(
+          ip: ip,
+          country: country,
+          code: code,
+          city: city,
+          isp: isp,
+          org: org,
+          asName: asName,
+          timezone: tz,
+          isHosting: isHosting,
+          isProxy: false,
+          fraudScore: score,
+          timezoneMatch: match,
+          clientTimezone: clientTzStr,
+          note: isHosting
+              ? 'نوع آی‌پی: هاستینگ دیتاسنتر. برای کارهای معمولی مناسب است.'
+              : 'نوع آی‌پی: مسکونی / خانگی. نمره ریسک عالی.',
+        );
+      }
+    } catch (_) {}
+
+    return null;
+  }
+}
