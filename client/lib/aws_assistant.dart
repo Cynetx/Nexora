@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'api.dart';
-import 'theme.dart';
+import 'store.dart';
 import 'vpn_service.dart';
 
 class UsIdentity {
@@ -271,7 +271,7 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
       decoration: BoxDecoration(
         color: p.bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        border: Border.all(color: p.line.withOpacity(0.5)),
+        border: Border.all(color: p.border.withOpacity(0.5)),
       ),
       child: Directionality(
         textDirection: TextDirection.rtl,
@@ -361,9 +361,9 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: p.panel,
+                      color: p.card,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: p.line.withOpacity(0.6)),
+                      border: Border.all(color: p.border.withOpacity(0.6)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,9 +428,9 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: p.panel,
+                      color: p.card,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: p.line.withOpacity(0.6)),
+                      border: Border.all(color: p.border.withOpacity(0.6)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
