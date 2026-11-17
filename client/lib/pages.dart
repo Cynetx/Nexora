@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
+import 'aws_assistant.dart';
 import 'connect_fx.dart';
 import 'connect_globe.dart';
 import 'geo_atlas.dart';
@@ -210,7 +211,24 @@ void showIpQualitySheet(BuildContext context) {
                     ),
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF9900),
+                    foregroundColor: const Color(0xFF040A1C),
+                    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.card_giftcard_rounded, size: 20),
+                  label: const Text('دستیار هوشمند دریافت ۱۰۰ دلار آمازون (بدون کارت)',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    showAwsAssistantSheet(context);
+                  },
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: p.accent,
@@ -630,13 +648,68 @@ class _HomePageState extends State<HomePage> {
           ),
         );
 
+        final awsAssistantButton = Padding(
+          padding: const EdgeInsets.only(top: 2, bottom: 4),
+          child: Panel(
+            onTap: () => showAwsAssistantSheet(context),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF9900), Color(0xFFFF5500)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text('دستیار دریافت ۱۰۰ دلار آمازون',
+                                style: TextStyle(color: p.text, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF29E07F).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: const Text('۹۹٪ قبولی',
+                                  style: TextStyle(color: Color(0xFF29E07F), fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text('آماده‌سازی خودکار ویندوز + آدرس معتبر آمریکا + ثبت‌نام بدون کارت',
+                            style: TextStyle(color: p.sub, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded, color: p.sub.withOpacity(0.6), size: 13),
+                ],
+              ),
+            ),
+          ),
+        );
+
         if (!wide) {
           return RefreshIndicator(
             onRefresh: _refetch,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
               padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-              children: [top, brand, const SizedBox(height: 18), server, connect, state, const ConnectStages(), note, const SizedBox(height: 6), qualityButton, speeds],
+              children: [top, brand, const SizedBox(height: 18), server, connect, state, const ConnectStages(), note, const SizedBox(height: 6), qualityButton, awsAssistantButton, speeds],
             ),
           );
         }
@@ -648,7 +721,7 @@ class _HomePageState extends State<HomePage> {
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(flex: 5, child: Column(children: [connect, state, const ConnectStages(), note])),
               const SizedBox(width: 24),
-              Expanded(flex: 4, child: Column(children: [server, const SizedBox(height: 14), qualityButton, speeds])),
+              Expanded(flex: 4, child: Column(children: [server, const SizedBox(height: 14), qualityButton, awsAssistantButton, speeds])),
             ]),
           ],
         );

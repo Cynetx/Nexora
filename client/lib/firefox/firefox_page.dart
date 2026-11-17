@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../aws_assistant.dart';
 import '../traffic_card.dart';
 import '../vpn_service.dart';
 import 'core/models.dart' show Account, AccountStatus, Location;
@@ -290,7 +291,47 @@ class _FirefoxPageState extends State<FirefoxPage> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             children: [
               _heroCard(theme),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              Card(
+                color: const Color(0xFF1E293B).withOpacity(0.6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: const Color(0xFFFF9900).withOpacity(0.4)),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF9900), Color(0xFFFF5500)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 22),
+                  ),
+                  title: const Row(
+                    children: [
+                      Text('دستیار ثبت‌نام ۱۰۰ دلار آمازون', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      SizedBox(width: 8),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0xFF10B981),
+                          borderRadius: BorderRadius.all(Radius.circular(5)),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          child: Text('بدون کارت', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: const Text('آدرس معتبر آمریکا + تنظیم ساعت ویندوز + مرورگر امن', style: TextStyle(fontSize: 11.5)),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  onTap: () => showAwsAssistantSheet(context),
+                ),
+              ),
+              const SizedBox(height: 10),
               if (_service.isOn && _service.status?.proxy != null) TrafficCard(reader: _trafficSample, title: 'اتصال Firefox', neon: true),
               _pingCard(theme, locations),
               const SizedBox(height: 14),
