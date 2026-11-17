@@ -13,6 +13,7 @@ import 'store.dart';
 import 'traffic_card.dart';
 import 'update_page.dart';
 import 'vpn_service.dart';
+import 'xray_config.dart';
 import 'firefox/firefox_page.dart';
 import 'firefox/firefox_service.dart';
 import 'widgets.dart';
@@ -42,7 +43,8 @@ Future<void> showConnPopup(BuildContext context) async {
 void showIpQualitySheet(BuildContext context) {
   final p = P.of(context);
   final isDesktop = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-  final proxy = isDesktop ? '127.0.0.1:10809' : null;
+  final on = VpnService.I.status.value.phase == Phase.on;
+  final proxy = (isDesktop && on) ? '127.0.0.1:10809' : null;
 
   showModalBottomSheet<void>(
     context: context,
@@ -551,42 +553,40 @@ class _HomePageState extends State<HomePage> {
           },
         );
 
-        final qualityButton = !on
-            ? const SizedBox.shrink()
-            : Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 4),
-                child: Panel(
-                  onTap: () => showIpQualitySheet(context),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  child: Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: Row(
+        final qualityButton = Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Panel(
+            onTap: () => showIpQualitySheet(context),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: p.accent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.verified_user_rounded, color: p.accent, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: p.accent.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(Icons.verified_user_rounded, color: p.accent, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('بررسی اصالت و سلامت آی‌پی', style: TextStyle(color: p.text, fontSize: 13.5, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 2),
-                              Text('تست نمره ریسک، نوع مسکونی و نشت DNS ویژه آمازون و جمینای', style: TextStyle(color: p.sub, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.arrow_forward_ios_rounded, color: p.sub.withOpacity(0.6), size: 13),
+                        Text('بررسی اصالت و سلامت آی‌پی', style: TextStyle(color: p.text, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        Text(on ? 'تست نمره تقلب، نوع مسکونی و نشت ویژه آمازون و جمینای' : 'تست نمره سلامت و مشخصات آی‌پی اینترنت فعلی', style: TextStyle(color: p.sub, fontSize: 11)),
                       ],
                     ),
                   ),
-                ),
-              );
+                  Icon(Icons.arrow_forward_ios_rounded, color: p.sub.withOpacity(0.6), size: 13),
+                ],
+              ),
+            ),
+          ),
+        );
 
         if (!wide) {
           return RefreshIndicator(
@@ -783,6 +783,83 @@ class _LocationsPageState extends State<LocationsPage> {
     Navigator.pop(context);
   }
 
+  void _addCustomConfig(BuildContext context) {
+    final ctl = TextEditingController();
+    final p = P.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('افزودن سرور شخصی', style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('لینک کانفیگ (vless, vmess, trojan, ss) را پیست کنید:', style: TextStyle(color: p.sub, fontSize: 12)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctl,
+              maxLines: 3,
+              style: TextStyle(color: p.text, fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'vless://... یا vmess://...',
+                hintStyle: TextStyle(color: p.sub.withOpacity(0.5)),
+                filled: true,
+                fillColor: p.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: p.border)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.content_paste_rounded, size: 16),
+              label: const Text('جای‌گذاری از کلیپ‌بورد'),
+              onPressed: () async {
+                final d = await Clipboard.getData('text/plain');
+                if (d?.text != null) ctl.text = d!.text!.trim();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          ElevatedButton(
+            onPressed: () async {
+              final text = ctl.text.trim();
+              if (text.isEmpty) return;
+              final info = parseLink(text);
+              if (info.outbound == null) {
+                snack(context, 'لینک کانفیگ نامعتبر است');
+                return;
+              }
+              final newCfg = {
+                'id': 'custom-${DateTime.now().millisecondsSinceEpoch}',
+                'name': info.name.isNotEmpty ? info.name : 'سرور شخصی',
+                'quotaGb': 0,
+                'expires': '',
+                'link': text,
+                'protocol': info.protocol,
+                'transport': info.transport,
+                'country': 'Custom',
+                'code': 'US',
+              };
+              final cur = List<Map<String, dynamic>>.from(Store.configs.value);
+              cur.insert(0, newCfg);
+              await Store.setConfigs(cur);
+              await Store.setServerId('${newCfg['id']}');
+              Store.applySelection();
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) setState(() {});
+              snack(context, 'کانفیگ اضافه و انتخاب شد');
+              _pingAll();
+            },
+            child: const Text('افزودن و انتخاب'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _radio(P p, bool sel) => Icon(sel ? Icons.radio_button_checked : Icons.radio_button_off, color: sel ? p.accent2 : p.sub, size: 26);
 
   Widget _header(P p) => Directionality(
@@ -798,6 +875,12 @@ class _LocationsPageState extends State<LocationsPage> {
               ),
             ),
             Expanded(child: Center(child: Text('سرورها', style: TextStyle(color: p.text, fontSize: 20, fontWeight: FontWeight.w800)))),
+            IconButton(
+              tooltip: 'افزودن سرور شخصی',
+              icon: Icon(Icons.add_link_rounded, color: p.accent2, size: 26),
+              onPressed: () => _addCustomConfig(context),
+            ),
+            const SizedBox(width: 4),
             GestureDetector(
               onTap: _pingAll,
               child: Container(

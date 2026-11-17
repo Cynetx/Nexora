@@ -183,22 +183,23 @@ class FirefoxService extends ChangeNotifier {
       exe.path,
       ['-app', '-data-dir=$_dataDir'],
       workingDirectory: exe.parent.path,
-      // هسته با بسته‌شدن stdin متوقف می‌شود؛ روی لینوکس/مک stdin باز می‌ماند.
-      mode: Platform.isWindows ? ProcessStartMode.detachedWithStdio : ProcessStartMode.normal,
+      mode: ProcessStartMode.normal,
     );
     _coreProcess = process;
-    unawaited(process.stdout.drain<void>());
-    unawaited(process.stderr.drain<void>());
-    process.exitCode.then((_) {
-      if (identical(_coreProcess, process)) {
-        _coreProcess = null;
-        _api?.close();
-        _api = null;
-        _requestedOn = false;
-        _error = 'هسته Firefox متوقف شد';
-        notifyListeners();
-      }
-    });
+    try {
+      unawaited(process.stdout.drain<void>());
+      unawaited(process.stderr.drain<void>());
+      process.exitCode.then((_) {
+        if (identical(_coreProcess, process)) {
+          _coreProcess = null;
+          _api?.close();
+          _api = null;
+          _requestedOn = false;
+          _error = 'هسته Firefox متوقف شد';
+          notifyListeners();
+        }
+      }).catchError((_) {});
+    } catch (_) {}
   }
 
   Future<void> refresh() async {
