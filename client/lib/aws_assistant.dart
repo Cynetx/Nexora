@@ -238,7 +238,7 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
     final isDesktop = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
     final on = VpnService.I.status.value.phase == Phase.on;
     final proxy = (isDesktop && on) ? '127.0.0.1:10809' : null;
-    final q = await Api.inspectQuality(proxy: proxy);
+    final q = await Api.inspectIpQuality(proxy: proxy);
     if (mounted) {
       setState(() {
         _quality = q;

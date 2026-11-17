@@ -476,6 +476,7 @@ class Api {
   }
 
   /// استعلام نمره ریسک، اصالت آی‌پی (خانگی/دیتاسنتر)، ASN و تطابق منطقه زمانی ویژه آمازون و جمینای
+  static Future<IpQualityReport?> inspectQuality({String? proxy}) => inspectIpQuality(proxy: proxy);
   static Future<IpQualityReport?> inspectIpQuality({String? proxy}) async {
     try {
       final r = await _request(
