@@ -310,19 +310,17 @@ class _FirefoxPageState extends State<FirefoxPage> {
                     ),
                     child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 22),
                   ),
-                  title: const Row(
+                  title: Row(
                     children: [
-                      Text('دستیار ثبت‌نام ۱۰۰ دلار آمازون', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                      SizedBox(width: 8),
-                      DecoratedBox(
+                      const Text('دستیار ثبت‌نام ۱۰۰ دلار آمازون', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: Color(0xFF10B981),
-                          borderRadius: BorderRadius.all(Radius.circular(5)),
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(5),
                         ),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          child: Text('بدون کارت', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
-                        ),
+                        child: const Text('بدون کارت', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),

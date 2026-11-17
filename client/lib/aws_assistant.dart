@@ -313,24 +313,22 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Text(
+                            const Text(
                               'دستیار دریافت ۱۰۰ دلار آمازون',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
-                            SizedBox(width: 8),
-                            DecoratedBox(
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Color(0xFF10B981),
-                                borderRadius: BorderRadius.all(Radius.circular(6)),
+                                color: const Color(0xFF10B981),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                child: Text(
-                                  'تضمین بدون کارت',
-                                  style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
+                              child: const Text(
+                                'تضمین بدون کارت',
+                                style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
@@ -368,8 +366,8 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
-                          children: [
+                        Row(
+                          children: const [
                             Icon(Icons.checklist_rounded, color: Color(0xFF29E07F), size: 20),
                             SizedBox(width: 8),
                             Text('بررسی خودکار وضعیت اتصال و امنیت',
@@ -484,8 +482,8 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Row(
-                          children: [
+                        Row(
+                          children: const [
                             Icon(Icons.rocket_launch_rounded, color: Color(0xFF60A5FA), size: 22),
                             SizedBox(width: 10),
                             Text('اجرای فوق‌امن و ورود به ثبت‌نام',
@@ -540,8 +538,8 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
-                          children: [
+                        Row(
+                          children: const [
                             Icon(Icons.lightbulb_rounded, color: Color(0xFF10B981), size: 20),
                             SizedBox(width: 8),
                             Text('۳ راز طلایی برای عبور ۱۰۰٪ بدون نیاز به کارت:',
