@@ -239,6 +239,9 @@ class VpnService with WidgetsBindingObserver {
       'country': g?.country ?? '',
     });
     _connectSent = true;
+    if (Platform.isWindows && Store.autoTimezoneSync) {
+      unawaited(Api.syncWindowsTimezone(g?.code ?? (cfg == null ? '' : '${cfg['code'] ?? ''}')));
+    }
     _ping?.cancel();
     _ping = Timer.periodic(const Duration(seconds: 60), (_) => Api.event({'type': 'ping'}));
   }
@@ -839,6 +842,9 @@ class VpnService with WidgetsBindingObserver {
   Future<void> _stopWindowsState() async {
     _proc = null;
     await _setProxy(false);
+    if (Platform.isWindows && Store.autoTimezoneSync) {
+      unawaited(Api.restoreWindowsTimezone());
+    }
     _afterDisconnected();
   }
 
@@ -853,6 +859,9 @@ class VpnService with WidgetsBindingObserver {
       _proc = null;
       p?.kill();
       await _setProxy(false);
+      if (Platform.isWindows && Store.autoTimezoneSync) {
+        unawaited(Api.restoreWindowsTimezone());
+      }
       await Future.delayed(const Duration(milliseconds: 500));
     }
   }
@@ -867,6 +876,9 @@ class VpnService with WidgetsBindingObserver {
       _proc = null;
       p?.kill();
       await _setProxy(false);
+      if (Platform.isWindows && Store.autoTimezoneSync) {
+        unawaited(Api.restoreWindowsTimezone());
+      }
       _afterDisconnected();
     } else {
       status.value = VpnStatus.idle;

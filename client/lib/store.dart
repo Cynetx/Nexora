@@ -218,8 +218,11 @@ class Store {
   static bool get upstreamProxyEnabled => _p.getBool('upstream_proxy_on') ?? false;
   static Future<void> setUpstreamProxyEnabled(bool v) => _p.setBool('upstream_proxy_on', v);
 
+  static bool get autoTimezoneSync => _p.getBool('auto_timezone_sync') ?? true;
+  static Future<void> setAutoTimezoneSync(bool v) => _p.setBool('auto_timezone_sync', v);
+
   static Future<void> resetSettings() async {
-    for (final k in ['autoConnect', 'notif', 'battery', 'system', 'advNotif', 'serverId', 'theme', 'lite2', 'lite3', 'stealth_fragment', 'upstream_proxy', 'upstream_proxy_on']) {
+    for (final k in ['autoConnect', 'notif', 'battery', 'system', 'advNotif', 'serverId', 'theme', 'lite2', 'lite3', 'stealth_fragment', 'upstream_proxy', 'upstream_proxy_on', 'auto_timezone_sync']) {
       await _p.remove(k);
     }
     themeMode.value = ThemeMode.dark;

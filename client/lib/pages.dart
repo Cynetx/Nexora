@@ -168,7 +168,49 @@ void showIpQualitySheet(BuildContext context) {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                if (!r.timezoneMatch && Platform.isWindows) ...[
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF29E07F),
+                      foregroundColor: const Color(0xFF040A1C),
+                      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.auto_fix_high_rounded, size: 20),
+                    label: const Text('تنظیم خودکار ساعت ویندوز روی موقعیت سرور',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                    onPressed: () async {
+                      final ok = await Api.syncWindowsTimezone(r.code, timezone: r.timezone);
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        snack(context, ok
+                            ? 'ساعت ویندوز روی منطقه زمانی سرور (${r.country}) تنظیم شد!'
+                            : 'تنظیم ساعت ویندوز با خطا مواجه شد. در صورت امکان برنامه را به صورت Run as administrator اجرا کنید');
+                        showIpQualitySheet(context);
+                      }
+                    },
+                  ),
+                ] else if (Api.isTimezoneOverridden && Platform.isWindows) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.restore_rounded, size: 16),
+                      label: const Text('بازگردانی ساعت ویندوز به زمان اصلی ایران (Tehran)',
+                          style: TextStyle(fontSize: 12, color: Colors.white70)),
+                      onPressed: () async {
+                        await Api.restoreWindowsTimezone();
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          snack(context, 'ساعت سیستم به حالت اولیه ایران بازگردانده شد.');
+                          showIpQualitySheet(context);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: p.accent,
@@ -1667,6 +1709,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
           },
         ),
         _sw(Icons.security_rounded, Colors.amberAccent, 'حالت ضد فیلترینگ شدید (Stealth Fragment)', 'تکه‌تکه کردن پکت‌های TLS برای عبور از سد همراه اول و ایرانسل', 'stealth_fragment', true),
+        _sw(Icons.access_time_filled_rounded, const Color(0xFF29E07F), 'همگام‌سازی خودکار منطقه زمانی ویندوز (Auto-Timezone)', 'تنظیم خودکار ساعت ویندوز با لوکیشن سرور برای دور زدن فیلترهای ضد تقلب آمازون و جمینای', 'auto_timezone_sync', true),
         Tile(
           icon: Icons.alt_route_rounded,
           iconColor: const Color(0xFF33B5FF),

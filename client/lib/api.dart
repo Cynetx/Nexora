@@ -594,6 +594,16 @@ class Api {
           match = false;
         }
 
+        var note = isHosting
+            ? 'نوع آی‌پی: هاستینگ دیتاسنتر. برای کارهای معمولی مناسب است.'
+            : 'نوع آی‌پی: مسکونی / خانگی. نمره ریسک عالی.';
+
+        if (!match) {
+          note += '\n⚠️ عدم تطابق ساعت: ساعت سیستم شما با موقعیت سرور ($country) هماهنگ نیست. برای ثبت‌نام آمازون و پی‌پال، دکمه «تنظیم خودکار ساعت» را بزنید.';
+        } else {
+          note += '\n✅ تطابق کامل ساعت و لوکیشن: ساعت ویندوز با موقعیت سرور کاملاً هماهنگ است (آماده برای ثبت‌نام آمازون و سرویس‌های خارجی بدون ریسک تقلب).';
+        }
+
         return IpQualityReport(
           ip: ip,
           country: country,
@@ -608,13 +618,123 @@ class Api {
           fraudScore: score,
           timezoneMatch: match,
           clientTimezone: clientTzStr,
-          note: isHosting
-              ? 'نوع آی‌پی: هاستینگ دیتاسنتر. برای کارهای معمولی مناسب است.'
-              : 'نوع آی‌پی: مسکونی / خانگی. نمره ریسک عالی.',
+          note: note,
         );
       }
     } catch (_) {}
 
     return null;
+  }
+
+  static String? _savedOriginalWindowsTz;
+  static bool get isTimezoneOverridden => _savedOriginalWindowsTz != null;
+
+  /// همگام‌سازی خودکار منطقه زمانی ویندوز با موقعیت سرور متصل‌شده
+  static Future<bool> syncWindowsTimezone(String countryCode, {String? timezone}) async {
+    if (!Platform.isWindows) return false;
+    try {
+      if (_savedOriginalWindowsTz == null) {
+        final r = await Process.run('tzutil', ['/g']);
+        final cur = r.stdout.toString().trim();
+        if (cur.isNotEmpty && !cur.toLowerCase().contains('error')) {
+          _savedOriginalWindowsTz = cur;
+        }
+      }
+
+      final targetTz = _mapToWindowsTz(countryCode, timezone);
+      if (targetTz.isEmpty) return false;
+
+      var res = await Process.run('tzutil', ['/s', targetTz]);
+      if (res.exitCode != 0) {
+        res = await Process.run('powershell', ['-Command', "Set-TimeZone -Id '$targetTz'"]);
+      }
+      return res.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// بازگرداندن منطقه زمانی اصلی ویندوز (تهران) در هنگام قطع اتصال
+  static Future<void> restoreWindowsTimezone() async {
+    if (!Platform.isWindows) return;
+    final orig = _savedOriginalWindowsTz;
+    if (orig == null || orig.isEmpty) return;
+    try {
+      var res = await Process.run('tzutil', ['/s', orig]);
+      if (res.exitCode != 0) {
+        await Process.run('powershell', ['-Command', "Set-TimeZone -Id '$orig'"]);
+      }
+    } catch (_) {} finally {
+      _savedOriginalWindowsTz = null;
+    }
+  }
+
+  static String _mapToWindowsTz(String countryCode, String? timezone) {
+    if (timezone != null && timezone.isNotEmpty) {
+      final tzLower = timezone.toLowerCase();
+      if (tzLower.contains('amsterdam') || tzLower.contains('berlin') || tzLower.contains('vienna') || tzLower.contains('stockholm') || tzLower.contains('rome')) {
+        return 'W. Europe Standard Time';
+      }
+      if (tzLower.contains('paris') || tzLower.contains('madrid') || tzLower.contains('brussels')) {
+        return 'Romance Standard Time';
+      }
+      if (tzLower.contains('london') || tzLower.contains('dublin') || tzLower.contains('lisbon')) {
+        return 'GMT Standard Time';
+      }
+      if (tzLower.contains('new_york') || tzLower.contains('detroit') || tzLower.contains('toronto') || tzLower.contains('montreal')) {
+        return 'Eastern Standard Time';
+      }
+      if (tzLower.contains('chicago') || tzLower.contains('dallas') || tzLower.contains('houston') || tzLower.contains('winnipeg')) {
+        return 'Central Standard Time';
+      }
+      if (tzLower.contains('denver') || tzLower.contains('phoenix') || tzLower.contains('salt_lake')) {
+        return 'Mountain Standard Time';
+      }
+      if (tzLower.contains('los_angeles') || tzLower.contains('seattle') || tzLower.contains('vancouver') || tzLower.contains('san_francisco')) {
+        return 'Pacific Standard Time';
+      }
+      if (tzLower.contains('tokyo')) return 'Tokyo Standard Time';
+      if (tzLower.contains('seoul')) return 'Korea Standard Time';
+      if (tzLower.contains('singapore')) return 'Singapore Standard Time';
+      if (tzLower.contains('dubai')) return 'Arabian Standard Time';
+      if (tzLower.contains('sydney') || tzLower.contains('melbourne')) return 'AUS Eastern Standard Time';
+    }
+
+    final code = countryCode.toUpperCase().trim();
+    if (code.startsWith('US') || code.contains('USA') || code.contains('UNITED STATES')) {
+      return 'Eastern Standard Time';
+    }
+    if (code.startsWith('CA') || code.contains('CANADA')) {
+      return 'Eastern Standard Time';
+    }
+    if (code.startsWith('NL') || code.contains('NETHERLANDS') ||
+        code.startsWith('DE') || code.contains('GERMANY') ||
+        code.startsWith('IT') || code.startsWith('AT') ||
+        code.startsWith('CH') || code.startsWith('SE') ||
+        code.startsWith('NO') || code.startsWith('DK')) {
+      return 'W. Europe Standard Time';
+    }
+    if (code.startsWith('GB') || code.startsWith('UK') || code.startsWith('IE') || code.contains('UNITED KINGDOM')) {
+      return 'GMT Standard Time';
+    }
+    if (code.startsWith('FR') || code.startsWith('ES') || code.startsWith('BE')) {
+      return 'Romance Standard Time';
+    }
+    if (code.startsWith('TR') || code.contains('TURKEY')) {
+      return 'Turkey Standard Time';
+    }
+    if (code.startsWith('AE') || code.contains('EMIRATES') || code.contains('DUBAI')) {
+      return 'Arabian Standard Time';
+    }
+    if (code.startsWith('JP') || code.contains('JAPAN')) {
+      return 'Tokyo Standard Time';
+    }
+    if (code.startsWith('SG') || code.contains('SINGAPORE')) {
+      return 'Singapore Standard Time';
+    }
+    if (code.startsWith('AU') || code.contains('AUSTRALIA')) {
+      return 'AUS Eastern Standard Time';
+    }
+    return 'Eastern Standard Time';
   }
 }

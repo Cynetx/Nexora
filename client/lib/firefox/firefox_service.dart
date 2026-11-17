@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api.dart';
+import '../store.dart';
 import 'core/core_api.dart';
 import 'core/models.dart';
 
@@ -753,6 +754,9 @@ class FirefoxService extends ChangeNotifier {
         await api.setSystemProxy(desktopMode);
         await api.setPower(true);
       }
+      if (Platform.isWindows && Store.autoTimezoneSync) {
+        unawaited(Api.syncWindowsTimezone(selectedCountry));
+      }
       _requestedOn = true;
       _poll?.cancel();
       _poll = Timer.periodic(const Duration(seconds: 3), (_) {
@@ -804,6 +808,9 @@ class FirefoxService extends ChangeNotifier {
       } else if (_api != null) {
         await _api!.setPower(false);
         await _api!.setSystemProxy('clear');
+      }
+      if (Platform.isWindows && Store.autoTimezoneSync) {
+        unawaited(Api.restoreWindowsTimezone());
       }
     } finally {
       _requestedOn = false;
