@@ -32,12 +32,12 @@ class UsIdentity {
 const List<UsIdentity> _kPredefinedUsIdentities = [
   UsIdentity(
     fullName: 'Robert Vance',
-    street: '1201 N Orange St, Ste 700',
-    city: 'Wilmington',
-    state: 'Delaware',
-    stateCode: 'DE',
-    zip: '19801',
-    phone: '(302) 658-7120',
+    street: '100 Mulberry St, Ste 400',
+    city: 'Newark',
+    state: 'New Jersey',
+    stateCode: 'NJ',
+    zip: '07102',
+    phone: '(973) 621-4400',
   ),
   UsIdentity(
     fullName: 'James Miller',
@@ -148,30 +148,50 @@ class AwsAssistant {
     return _kPredefinedUsIdentities[rnd.nextInt(_kPredefinedUsIdentities.length)];
   }
 
-  /// باز کردن مرورگر در حالت ایزوله و امن (InPrivate/Incognito) بدون نشت کوکی و زبان
+  /// انتخاب هویت معتبر و هماهنگ دقیق با شهر و ایالت سرور متصل‌شده
+  static UsIdentity getIdentityForCity(String city, String region) {
+    final c = city.toLowerCase();
+    final r = region.toLowerCase();
+    for (final id in _kPredefinedUsIdentities) {
+      if (c.contains(id.city.toLowerCase()) ||
+          r.contains(id.state.toLowerCase()) ||
+          r.contains(id.stateCode.toLowerCase())) {
+        return id;
+      }
+    }
+    if (c.contains('newark') || r.contains('jersey') || r.contains('nj')) {
+      return _kPredefinedUsIdentities.firstWhere((id) => id.stateCode == 'NJ', orElse: () => _kPredefinedUsIdentities.first);
+    }
+    if (c.contains('york') || r.contains('ny')) {
+      return _kPredefinedUsIdentities.firstWhere((id) => id.stateCode == 'NY', orElse: () => _kPredefinedUsIdentities.first);
+    }
+    return getRandomIdentity();
+  }
+
+  /// باز کردن مرورگر در حالت ایزوله و امن (InPrivate/Incognito) همراه با قطع نشت WebRTC
   static Future<bool> launchSafeBrowser(String url) async {
     if (Platform.isWindows) {
       // ابتدا ساعت سیستم را به طور خودکار با آمریکا هماهنگ می‌کنیم
       await Api.syncWindowsTimezone('US');
 
       try {
-        // ۱. تلاش با مایکروسافت اج (Edge پیش‌فرض ویندوز ۱۰ و ۱۱، ایزوله و انگلیسی)
+        // ۱. تلاش با مایکروسافت اج (Edge پیش‌فرض با مسدودسازی قطعی نشت WebRTC به ایران)
         final r = await Process.run('powershell', [
           '-NoProfile',
           '-NonInteractive',
           '-Command',
-          'Start-Process msedge.exe -ArgumentList @("--inprivate", "--lang=en-US", "$url")',
+          'Start-Process msedge.exe -ArgumentList @("--inprivate", "--lang=en-US", "--force-webrtc-ip-handling-policy=disable_non_proxied_udp", "--disable-features=WebRtcHideLocalIpsWithMdns", "$url")',
         ]);
         if (r.exitCode == 0) return true;
       } catch (_) {}
 
       try {
-        // ۲. تلاش با گوگل کروم در حالت اینکوگنیتو
+        // ۲. تلاش با گوگل کروم در حالت اینکوگنیتو و مسدودسازی قطعی نشت WebRTC
         final r = await Process.run('powershell', [
           '-NoProfile',
           '-NonInteractive',
           '-Command',
-          'Start-Process chrome.exe -ArgumentList @("--incognito", "--lang=en-US", "$url")',
+          'Start-Process chrome.exe -ArgumentList @("--incognito", "--lang=en-US", "--force-webrtc-ip-handling-policy=disable_non_proxied_udp", "--disable-features=WebRtcHideLocalIpsWithMdns", "$url")',
         ]);
         if (r.exitCode == 0) return true;
       } catch (_) {}
@@ -183,7 +203,7 @@ class AwsAssistant {
       } catch (_) {}
     } else if (Platform.isLinux) {
       try {
-        await Process.run('google-chrome', ['--incognito', '--lang=en-US', url]);
+        await Process.run('google-chrome', ['--incognito', '--lang=en-US', '--force-webrtc-ip-handling-policy=disable_non_proxied_udp', url]);
         return true;
       } catch (_) {
         try {
@@ -193,7 +213,7 @@ class AwsAssistant {
       }
     } else if (Platform.isMacOS) {
       try {
-        await Process.run('open', ['-na', 'Google Chrome', '--args', '--incognito', url]);
+        await Process.run('open', ['-na', 'Google Chrome', '--args', '--incognito', '--force-webrtc-ip-handling-policy=disable_non_proxied_udp', url]);
         return true;
       } catch (_) {
         try {
@@ -243,6 +263,9 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
       setState(() {
         _quality = q;
         _loadingQuality = false;
+        if (q != null && q.city.isNotEmpty) {
+          _identity = AwsAssistant.getIdentityForCity(q.city, q.country);
+        }
       });
     }
   }
