@@ -649,26 +649,23 @@ class _HomePageState extends State<HomePage> {
         );
 
         final connectHero = Panel(
-          padding: EdgeInsets.symmetric(vertical: wide ? 28 : 22, horizontal: 16),
+          padding: EdgeInsets.symmetric(vertical: wide ? 20 : 18, horizontal: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                height: wide ? 260 : 210,
+                height: wide ? 190 : 175,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
                     Positioned.fill(
                       child: RepaintBoundary(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: ValueListenableBuilder<bool>(
-                            valueListenable: Store.lite,
-                            builder: (context, lite, _) => CustomPaint(
-                              isComplex: true,
-                              willChange: false,
-                              painter: GlobePainter(p.accent2, on, lite),
-                            ),
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: Store.lite,
+                          builder: (context, lite, _) => CustomPaint(
+                            isComplex: true,
+                            willChange: false,
+                            painter: GlobePainter(p.accent2, on, lite, busy: busy),
                           ),
                         ),
                       ),
@@ -680,11 +677,11 @@ class _HomePageState extends State<HomePage> {
                           builder: (_, lite, __) => lite ? const SizedBox.shrink() : const PulseRings(color: Color(0xFF29E07F)),
                         ),
                       ),
-                    SlideSwitch(on: on, busy: busy, onChanged: _toggle),
+                    MasterPowerButton(on: on, busy: busy, onChanged: _toggle),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               // بج وضعیت اتصال شیک و یکپارچه
               MouseRegion(
                 cursor: SystemMouseCursors.click,
@@ -692,7 +689,7 @@ class _HomePageState extends State<HomePage> {
                   onTap: busy ? null : () => _toggle(!on),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
                     decoration: BoxDecoration(
                       color: on
                           ? const Color(0xFF29E07F).withOpacity(0.12)

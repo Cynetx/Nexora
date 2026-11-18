@@ -346,59 +346,202 @@ class GlobePainter extends CustomPainter {
   final Color c;
   final bool on;
   final bool lite;
-  GlobePainter(this.c, this.on, this.lite);
-
-  static final List<List<double>> _stars = () {
-    final r = Random(7);
-    return List.generate(24, (_) => [r.nextDouble(), r.nextDouble() * 0.5, r.nextDouble() * 1.1 + 0.3]);
-  }();
+  final bool busy;
+  GlobePainter(this.c, this.on, this.lite, {this.busy = false});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final glow = on ? const Color(0xFF29E07F) : c;
-    final radius = size.width * 0.78;
-    final center = Offset(size.width / 2, size.height * 0.55 + radius);
-    if (lite) {
-      canvas.drawCircle(center, radius + 10, Paint()..color = glow.withOpacity(0.10)..style = PaintingStyle.stroke..strokeWidth = 16);
-      canvas.drawCircle(center, radius + 5, Paint()..color = glow.withOpacity(0.22)..style = PaintingStyle.stroke..strokeWidth = 8);
-    } else {
-      canvas.drawCircle(
-          center,
-          radius + 6,
-          Paint()
-            ..color = glow.withOpacity(0.9)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 5
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
+    final center = Offset(size.width / 2, size.height / 2);
+    final glow = on
+        ? const Color(0xFF29E07F)
+        : (busy ? Colors.amber : c);
+
+    // ۱. هاله نورانی و امبینت نرم در مرکز دقیق پشت دکمه
+    final maxR = (size.width < size.height ? size.width : size.height) * 0.48;
+    final radialPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 0.9,
+        colors: [
+          glow.withOpacity(on ? 0.28 : (busy ? 0.22 : 0.14)),
+          glow.withOpacity(on ? 0.08 : 0.03),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: maxR));
+
+    canvas.drawCircle(center, maxR, radialPaint);
+
+    // ۲. حلقه‌های متمرکز سایبرپانک و متقارن
+    final r1 = 68.0; // دور دکمه
+    final r2 = 96.0; // حلقه میانی
+    final r3 = 126.0; // حلقه بیرونی
+
+    final ringPaint1 = Paint()
+      ..color = glow.withOpacity(on ? 0.35 : 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+
+    final ringPaint2 = Paint()
+      ..color = glow.withOpacity(on ? 0.20 : 0.10)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final ringPaint3 = Paint()
+      ..color = glow.withOpacity(on ? 0.12 : 0.05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    canvas.drawCircle(center, r1, ringPaint1);
+    canvas.drawCircle(center, r2, ringPaint2);
+    if (size.height >= 190) {
+      canvas.drawCircle(center, r3, ringPaint3);
     }
-    canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..shader = RadialGradient(
-            center: const Alignment(0, -1),
-            radius: 1.0,
-            colors: [glow.withOpacity(0.55), const Color(0xFF07204F).withOpacity(0.85), const Color(0xFF040A1E)],
-            stops: const [0.0, 0.18, 0.5],
-          ).createShader(Rect.fromCircle(center: center, radius: radius)));
-    canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..shader = LinearGradient(colors: [Colors.white.withOpacity(0.9), glow, glow.withOpacity(0)], begin: Alignment.topCenter, end: Alignment.bottomCenter)
-              .createShader(Rect.fromCircle(center: center, radius: radius))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2);
-    final sp = Paint()..color = Colors.white.withOpacity(0.55);
-    final n = lite ? 14 : _stars.length;
-    for (var i = 0; i < n; i++) {
-      final s = _stars[i];
-      canvas.drawCircle(Offset(s[0] * size.width, s[1] * size.height), s[2], sp);
+
+    // ۳. نشانگرهای رادار و تیک‌های تکنولوژی در ۴ جهت
+    final tickPaint = Paint()
+      ..color = glow.withOpacity(on ? 0.45 : 0.25)
+      ..strokeWidth = 1.5;
+
+    for (var angle in [0.0, pi / 2, pi, 3 * pi / 2]) {
+      final dx1 = center.dx + (r2 - 6) * cos(angle);
+      final dy1 = center.dy + (r2 - 6) * sin(angle);
+      final dx2 = center.dx + (r2 + 6) * cos(angle);
+      final dy2 = center.dy + (r2 + 6) * sin(angle);
+      canvas.drawLine(Offset(dx1, dy1), Offset(dx2, dy2), tickPaint);
+    }
+
+    // ۴. در صورت فعال بودن، موج نئونی بلور
+    if (on && !lite) {
+      final glowWave = Paint()
+        ..color = glow.withOpacity(0.20)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      canvas.drawCircle(center, r1 + 3, glowWave);
     }
   }
 
   @override
-  bool shouldRepaint(covariant GlobePainter old) => old.c != c || old.on != on || old.lite != lite;
+  bool shouldRepaint(covariant GlobePainter old) =>
+      old.c != c || old.on != on || old.lite != lite || old.busy != busy;
+}
+
+class MasterPowerButton extends StatefulWidget {
+  final bool on;
+  final bool busy;
+  final ValueChanged<bool> onChanged;
+
+  const MasterPowerButton({
+    super.key,
+    required this.on,
+    required this.busy,
+    required this.onChanged,
+  });
+
+  @override
+  State<MasterPowerButton> createState() => _MasterPowerButtonState();
+}
+
+class _MasterPowerButtonState extends State<MasterPowerButton> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final on = widget.on;
+    final busy = widget.busy;
+
+    final primaryColor = on
+        ? const Color(0xFF29E07F)
+        : (busy ? Colors.amber : const Color(0xFF2F8CFF));
+
+    return MouseRegion(
+      cursor: busy ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          if (!busy) widget.onChanged(!on);
+        },
+        onTapCancel: () => setState(() => _pressed = false),
+        child: AnimatedScale(
+          scale: _pressed ? 0.94 : (_hovered && !busy ? 1.04 : 1.0),
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            width: 124,
+            height: 124,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                center: const Alignment(0, -0.2),
+                radius: 0.9,
+                colors: on
+                    ? const [Color(0xFF0F5A3E), Color(0xFF093928), Color(0xFF051C13)]
+                    : (busy
+                        ? const [Color(0xFF4A3810), Color(0xFF2E2207), Color(0xFF151003)]
+                        : const [Color(0xFF1B284A), Color(0xFF0F182E), Color(0xFF070D1D)]),
+              ),
+              border: Border.all(
+                color: primaryColor.withOpacity(_hovered ? 1.0 : 0.85),
+                width: on ? 3.0 : 2.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withOpacity(on ? (_hovered ? 0.6 : 0.45) : (_hovered ? 0.4 : 0.2)),
+                  blurRadius: on ? (_hovered ? 24 : 18) : (_hovered ? 18 : 10),
+                  spreadRadius: on ? 2 : 0,
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (busy)
+                  const SizedBox(
+                    width: 76,
+                    height: 76,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.amber,
+                    ),
+                  ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.power_settings_new_rounded,
+                      size: 46,
+                      color: on
+                          ? const Color(0xFF29E07F)
+                          : (busy ? Colors.amber : const Color(0xFF33B5FF)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      busy ? '...' : (on ? 'ON' : 'OFF'),
+                      style: TextStyle(
+                        color: on
+                            ? const Color(0xFF29E07F)
+                            : (busy ? Colors.amber : const Color(0xFF8FA6CC)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class SlideSwitch extends StatefulWidget {
