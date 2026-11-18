@@ -711,6 +711,34 @@ class DesktopSidebar extends StatelessWidget {
         item(2, Icons.info_outline_rounded, 'اطلاعات'),
         item(3, Icons.public_rounded, 'فایرفاکس'),
         const Spacer(),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => onTap(2),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: p.accent.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: p.accent.withOpacity(0.2)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.code_rounded, size: 13, color: p.accent2),
+                    const SizedBox(width: 5),
+                    Text('معماران نکسورا', style: TextStyle(color: p.sub, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text('Parham × CYNET', style: TextStyle(color: p.accent2, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         ValueListenableBuilder<VpnStatus>(
           valueListenable: VpnService.I.status,
           builder: (context, s, _) {

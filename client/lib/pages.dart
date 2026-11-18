@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'aws_assistant.dart';
 import 'connect_fx.dart';
@@ -262,6 +263,331 @@ Widget _rowQuality(String label, String value, P p, {Color? valColor}) => Row(
         ),
       ],
     );
+
+Future<void> launchOrCopy(BuildContext context, String url, String label) async {
+  try {
+    final uri = Uri.parse(url);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      await Clipboard.setData(ClipboardData(text: url));
+      snack(context, '$label کپی شد: $url');
+    }
+  } catch (_) {
+    if (context.mounted) {
+      await Clipboard.setData(ClipboardData(text: url));
+      snack(context, '$label کپی شد: $url');
+    }
+  }
+}
+
+class _CreatorLink {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String url;
+  final Color color;
+
+  const _CreatorLink({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.url,
+    required this.color,
+  });
+}
+
+Widget _buildCreatorCard({
+  required BuildContext context,
+  required P p,
+  required bool isDark,
+  required String name,
+  required String role,
+  required String badge,
+  required Color badgeColor,
+  required IconData icon,
+  required String description,
+  required List<_CreatorLink> links,
+}) {
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: isDark ? const Color(0xFF0F1A35) : const Color(0xFFF1F5F9),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: badgeColor.withOpacity(0.35)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: badgeColor.withOpacity(0.18),
+                shape: BoxShape.circle,
+                border: Border.all(color: badgeColor.withOpacity(0.4)),
+              ),
+              child: Icon(icon, color: badgeColor, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          name,
+                          style: TextStyle(color: p.text, fontSize: 14.5, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: badgeColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          badge,
+                          style: TextStyle(color: badgeColor, fontSize: 9.5, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(role, style: TextStyle(color: p.sub, fontSize: 11)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          description,
+          style: TextStyle(color: p.text.withOpacity(0.85), fontSize: 11.5, height: 1.5),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: links.map((link) {
+            return GestureDetector(
+              onLongPress: () {
+                Clipboard.setData(ClipboardData(text: link.url));
+                snack(context, '${link.label} کپی شد: ${link.url}');
+              },
+              child: ActionChip(
+                avatar: Icon(link.icon, size: 14, color: link.color),
+                backgroundColor: isDark ? const Color(0xFF162544) : Colors.white,
+                side: BorderSide(color: link.color.withOpacity(0.35)),
+                label: Text(
+                  '${link.label}: ${link.value}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+                tooltip: 'کلیک: باز کردن | نگه‌داشتن: کپی',
+                onPressed: () => launchOrCopy(context, link.url, link.label),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    ),
+  );
+}
+
+void showCreatorsSheet(BuildContext context) {
+  final p = P.of(context);
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.88),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0B1226) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: p.border.withOpacity(0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: p.accent.withOpacity(0.2),
+              blurRadius: 30,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: p.sub.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.code_rounded, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'معماران و سازندگان پروژه نکسورا',
+                        style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'طراحی و توسعه با عشق برای اینترنت آزاد و امن',
+                        style: TextStyle(color: p.sub, fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  color: p.sub,
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: p.accent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: p.accent.withOpacity(0.25)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.format_quote_rounded, color: p.accent2, size: 22),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '«هدف ما فقط دور زدن فیلترینگ نبود؛ هدف ما خلق اثری هنری بود که استفاده از آن برای هر ایرانی لذت‌بخش و امن باشد.»',
+                      style: TextStyle(
+                        color: p.accent2,
+                        fontSize: 11.5,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  _buildCreatorCard(
+                    context: ctx,
+                    p: p,
+                    isDark: isDark,
+                    name: 'پرهام (Parham)',
+                    role: 'توسعه‌دهنده اصلی و معمار نرم‌افزار',
+                    badge: 'Lead Developer & Architect',
+                    badgeColor: const Color(0xFF8B5CF6),
+                    icon: Icons.terminal_rounded,
+                    description: 'معماری هسته اتصال، طراحی واسط کاربری سایبرپانک، مهندسی روتینگ هوشمند و بهینه‌سازی سرعت',
+                    links: [
+                      const _CreatorLink(
+                        icon: Icons.send_rounded,
+                        label: 'کانال تلگرام',
+                        value: '@parham_ste01',
+                        url: 'https://t.me/parham_ste01',
+                        color: Color(0xFF33B5FF),
+                      ),
+                      const _CreatorLink(
+                        icon: Icons.person_rounded,
+                        label: 'ارتباط مستقیم',
+                        value: '@me_parham01',
+                        url: 'https://t.me/me_parham01',
+                        color: Color(0xFF29E07F),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCreatorCard(
+                    context: ctx,
+                    p: p,
+                    isDark: isDark,
+                    name: 'تیم امنیت سایبری ساینت (CYNET Team)',
+                    role: 'طراحان زیرساخت امنیتی، شبکه و نفوذناپذیری',
+                    badge: 'Security & Infrastructure',
+                    badgeColor: const Color(0xFF10B981),
+                    icon: Icons.security_rounded,
+                    description: 'سپر ضد نشت WebRTC، بررسی سلامت آی‌پی، پروتکل‌های رمزنگاری اختصاصی و تالار پشتیبانی کاربران',
+                    links: [
+                      const _CreatorLink(
+                        icon: Icons.public_rounded,
+                        label: 'وب‌سایت رسمی',
+                        value: 'cynetx.ir',
+                        url: 'https://cynetx.ir',
+                        color: Color(0xFF00C6FF),
+                      ),
+                      const _CreatorLink(
+                        icon: Icons.forum_rounded,
+                        label: 'انجمن و تالار گفتگو',
+                        value: 'forum.cynetx.ir',
+                        url: 'https://forum.cynetx.ir',
+                        color: Colors.amber,
+                      ),
+                      const _CreatorLink(
+                        icon: Icons.send_rounded,
+                        label: 'کانال تلگرام ساینت',
+                        value: '@cynetx',
+                        url: 'https://t.me/cynetx',
+                        color: Color(0xFF33B5FF),
+                      ),
+                      const _CreatorLink(
+                        icon: Icons.groups_rounded,
+                        label: 'سوپرگروه چت ساینت',
+                        value: '@cynetgap',
+                        url: 'https://t.me/cynetgap',
+                        color: Color(0xFF29E07F),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -863,6 +1189,61 @@ class _HomePageState extends State<HomePage> {
           ),
         );
 
+        final creatorsCard = Padding(
+          padding: const EdgeInsets.only(top: 2, bottom: 4),
+          child: Panel(
+            onTap: () => showCreatorsSheet(context),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.people_alt_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text('معماران و سازندگان نکسورا',
+                                style: TextStyle(color: p.text, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: const Text('پرهام × ساینت',
+                                  style: TextStyle(color: Color(0xFFC084FC), fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text('Parham (معمار کلاینت) • تیم امنیت ساینت (CYNET)',
+                            style: TextStyle(color: p.sub, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded, color: p.sub.withOpacity(0.6), size: 13),
+                ],
+              ),
+            ),
+          ),
+        );
+
         if (!wide) {
           return RefreshIndicator(
             onRefresh: _refetch,
@@ -879,6 +1260,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 12),
                 qualityButton,
                 securityShieldButton,
+                creatorsCard,
                 speeds,
               ],
             ),
@@ -913,6 +1295,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 14),
                       qualityButton,
                       securityShieldButton,
+                      creatorsCard,
                       if (!on) speeds,
                     ],
                   ),
@@ -2612,6 +2995,14 @@ class _SettingsPageState extends State<SettingsPage> {
         const SectionTitle('بیشتر'),
         Group(children: [
           Tile(
+            icon: Icons.people_alt_rounded,
+            iconColor: const Color(0xFFC084FC),
+            title: 'معماران و سازندگان پروژه',
+            subtitle: 'پرهام (Parham) × تیم امنیت سایبری ساینت (CYNET)',
+            trailing: const Chevron(),
+            onTap: () => showCreatorsSheet(context),
+          ),
+          Tile(
             icon: Icons.system_update_rounded,
             iconColor: const Color(0xFF6BE6FF),
             title: 'به‌روزرسانی',
@@ -2875,142 +3266,109 @@ class InfoPage extends StatelessWidget {
         Panel(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('سازندگان و توسعه‌دهندگان', style: TextStyle(color: p.accent2, fontSize: 16.5, fontWeight: FontWeight.w800)),
+            Row(
+              children: [
+                Icon(Icons.workspace_premium_rounded, color: p.accent2, size: 22),
+                const SizedBox(width: 8),
+                Text('معماران و سازندگان پروژه', style: TextStyle(color: p.accent2, fontSize: 16.5, fontWeight: FontWeight.w800)),
+              ],
+            ),
             const SizedBox(height: 12),
-            // سازنده اول: پرهام
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
-                color: p.bg,
+                color: p.accent.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: p.border.withOpacity(0.5)),
+                border: Border.all(color: p.accent.withOpacity(0.25)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: p.accent.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.code_rounded, color: p.accent2, size: 20),
+                  Icon(Icons.format_quote_rounded, color: p.accent2, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '«هدف ما فقط دور زدن فیلترینگ نبود؛ هدف ما خلق اثری هنری بود که استفاده از آن برای هر ایرانی لذت‌بخش و امن باشد.»',
+                      style: TextStyle(
+                        color: p.accent2,
+                        fontSize: 11.5,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('پرهام (Parham)', style: TextStyle(color: p.text, fontSize: 14, fontWeight: FontWeight.bold)),
-                            Text('توسعه‌دهنده اصلی و معمار کلاینت', style: TextStyle(color: p.sub, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.send_rounded, size: 14, color: Color(0xFF33B5FF)),
-                        label: const Text('چنل: @parham_ste01', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: 'https://t.me/parham_ste01'));
-                          snack(context, 'لینک چنل پرهام کپی شد');
-                        },
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.person_rounded, size: 14, color: Color(0xFF29E07F)),
-                        label: const Text('ارتباط: @me_parham01', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: 'https://t.me/me_parham01'));
-                          snack(context, 'آیدی پرهام کپی شد');
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
+            _buildCreatorCard(
+              context: context,
+              p: p,
+              isDark: Theme.of(context).brightness == Brightness.dark,
+              name: 'پرهام (Parham)',
+              role: 'توسعه‌دهنده اصلی و معمار نرم‌افزار',
+              badge: 'Lead Developer & Architect',
+              badgeColor: const Color(0xFF8B5CF6),
+              icon: Icons.terminal_rounded,
+              description: 'معماری هسته اتصال، طراحی واسط کاربری سایبرپانک، مهندسی روتینگ هوشمند و بهینه‌سازی سرعت',
+              links: [
+                const _CreatorLink(
+                  icon: Icons.send_rounded,
+                  label: 'کانال تلگرام',
+                  value: '@parham_ste01',
+                  url: 'https://t.me/parham_ste01',
+                  color: Color(0xFF33B5FF),
+                ),
+                const _CreatorLink(
+                  icon: Icons.person_rounded,
+                  label: 'ارتباط مستقیم',
+                  value: '@me_parham01',
+                  url: 'https://t.me/me_parham01',
+                  color: Color(0xFF29E07F),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
-            // سازنده دوم: ساینت
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: p.bg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: p.border.withOpacity(0.5)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.security_rounded, color: Color(0xFF10B981), size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('تیم امنیتی ساینت (CYNET Security Team)', style: TextStyle(color: p.text, fontSize: 14, fontWeight: FontWeight.bold)),
-                            Text('طراحان زیرساخت امنیتی، شبکه و نفوذناپذیری', style: TextStyle(color: p.sub, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.public_rounded, size: 14, color: Color(0xFF00C6FF)),
-                        label: const Text('سایت: cynetx.ir', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: 'https://cynetx.ir'));
-                          snack(context, 'آدرس وب‌سایت cynetx.ir کپی شد');
-                        },
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.forum_rounded, size: 14, color: Colors.amber),
-                        label: const Text('انجمن: forum.cynetx.ir', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: 'https://forum.cynetx.ir'));
-                          snack(context, 'آدرس انجمن forum.cynetx.ir کپی شد');
-                        },
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.send_rounded, size: 14, color: Color(0xFF33B5FF)),
-                        label: const Text('چنل: @cynetx', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: 'https://t.me/cynetx'));
-                          snack(context, 'لینک چنل تلگرام ساینت کپی شد');
-                        },
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.groups_rounded, size: 14, color: Color(0xFF29E07F)),
-                        label: const Text('گروه: @cynetgap', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: 'https://t.me/cynetgap'));
-                          snack(context, 'لینک گپ تلگرام ساینت کپی شد');
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            _buildCreatorCard(
+              context: context,
+              p: p,
+              isDark: Theme.of(context).brightness == Brightness.dark,
+              name: 'تیم امنیت سایبری ساینت (CYNET Team)',
+              role: 'طراحان زیرساخت امنیتی، شبکه و نفوذناپذیری',
+              badge: 'Security & Infrastructure',
+              badgeColor: const Color(0xFF10B981),
+              icon: Icons.security_rounded,
+              description: 'سپر ضد نشت WebRTC، بررسی سلامت آی‌پی، پروتکل‌های رمزنگاری اختصاصی و تالار پشتیبانی کاربران',
+              links: [
+                const _CreatorLink(
+                  icon: Icons.public_rounded,
+                  label: 'وب‌سایت رسمی',
+                  value: 'cynetx.ir',
+                  url: 'https://cynetx.ir',
+                  color: Color(0xFF00C6FF),
+                ),
+                const _CreatorLink(
+                  icon: Icons.forum_rounded,
+                  label: 'انجمن و تالار گفتگو',
+                  value: 'forum.cynetx.ir',
+                  url: 'https://forum.cynetx.ir',
+                  color: Colors.amber,
+                ),
+                const _CreatorLink(
+                  icon: Icons.send_rounded,
+                  label: 'کانال تلگرام ساینت',
+                  value: '@cynetx',
+                  url: 'https://t.me/cynetx',
+                  color: Color(0xFF33B5FF),
+                ),
+                const _CreatorLink(
+                  icon: Icons.groups_rounded,
+                  label: 'سوپرگروه چت ساینت',
+                  value: '@cynetgap',
+                  url: 'https://t.me/cynetgap',
+                  color: Color(0xFF29E07F),
+                ),
+              ],
             ),
           ]),
         ),
