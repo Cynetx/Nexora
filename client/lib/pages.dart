@@ -2564,10 +2564,143 @@ class InfoPage extends StatelessWidget {
         Panel(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('درباره برنامه', style: TextStyle(color: p.accent2, fontSize: 17, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            Text('NEXORA VPN یک برنامه فیلترشکن امن و سریع است که با هدف دسترسی آزاد به اینترنت طراحی شده است.',
-                style: TextStyle(color: p.text, height: 1.8, fontSize: 13)),
+            Text('سازندگان و توسعه‌دهندگان', style: TextStyle(color: p.accent2, fontSize: 16.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            // سازنده اول: پرهام
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: p.bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: p.border.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: p.accent.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.code_rounded, color: p.accent2, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('پرهام (Parham)', style: TextStyle(color: p.text, fontSize: 14, fontWeight: FontWeight.bold)),
+                            Text('توسعه‌دهنده اصلی و معمار کلاینت', style: TextStyle(color: p.sub, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.send_rounded, size: 14, color: Color(0xFF33B5FF)),
+                        label: const Text('چنل: @parham_ste01', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: 'https://t.me/parham_ste01'));
+                          snack(context, 'لینک چنل پرهام کپی شد');
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.person_rounded, size: 14, color: Color(0xFF29E07F)),
+                        label: const Text('ارتباط: @me_parham01', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: 'https://t.me/me_parham01'));
+                          snack(context, 'آیدی پرهام کپی شد');
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // سازنده دوم: ساینت
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: p.bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: p.border.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.security_rounded, color: Color(0xFF10B981), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('تیم امنیتی ساینت (CYNET Security Team)', style: TextStyle(color: p.text, fontSize: 14, fontWeight: FontWeight.bold)),
+                            Text('طراحان زیرساخت امنیتی، شبکه و نفوذناپذیری', style: TextStyle(color: p.sub, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.public_rounded, size: 14, color: Color(0xFF00C6FF)),
+                        label: const Text('سایت: cynetx.ir', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: 'https://cynetx.ir'));
+                          snack(context, 'آدرس وب‌سایت cynetx.ir کپی شد');
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.forum_rounded, size: 14, color: Colors.amber),
+                        label: const Text('انجمن: forum.cynetx.ir', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: 'https://forum.cynetx.ir'));
+                          snack(context, 'آدرس انجمن forum.cynetx.ir کپی شد');
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.send_rounded, size: 14, color: Color(0xFF33B5FF)),
+                        label: const Text('چنل: @cynetx', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: 'https://t.me/cynetx'));
+                          snack(context, 'لینک چنل تلگرام ساینت کپی شد');
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.groups_rounded, size: 14, color: Color(0xFF29E07F)),
+                        label: const Text('گروه: @cynetgap', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: 'https://t.me/cynetgap'));
+                          snack(context, 'لینک گپ تلگرام ساینت کپی شد');
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ]),
         ),
         Panel(
