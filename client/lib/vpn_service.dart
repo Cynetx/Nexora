@@ -674,6 +674,8 @@ class VpnService with WidgetsBindingObserver {
       dns: _dnsXray(),
       enableFragment: Store.stealth,
       upstreamProxy: Store.upstreamProxyEnabled ? Store.upstreamProxy : null,
+      routingMode: Store.routingMode,
+      blockAds: Store.blockAds,
     );
     if (conf == null) return 'bad_link';
     final exe = _xrayExe;

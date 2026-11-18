@@ -85,6 +85,25 @@ class AndroidVpn {
         'outboundTag': 'block',
       });
     }
+    if (Store.blockAds && !rules.any((r) => r is Map && '${r['domain']}'.contains('category-ads-all'))) {
+      rules.add({
+        'type': 'field',
+        'domain': ['geosite:category-ads-all'],
+        'outboundTag': 'block',
+      });
+    }
+    if (Store.routingMode == 'bypass_lan_iran' && !rules.any((r) => r is Map && '${r['ip']}'.contains('geoip:ir'))) {
+      rules.add({
+        'type': 'field',
+        'ip': ['geoip:private', 'geoip:ir'],
+        'outboundTag': 'direct',
+      });
+      rules.add({
+        'type': 'field',
+        'domain': ['geosite:ir', 'regexp:.*\\.ir\$'],
+        'outboundTag': 'direct',
+      });
+    }
     rout['rules'] = rules;
     base['routing'] = rout;
     base['outbounds'] = outs;

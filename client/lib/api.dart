@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart' show Color;
 import 'store.dart';
+import 'xray_config.dart';
 
 const String _sbBuildUrl = String.fromEnvironment('SB_URL', defaultValue: 'https://xvisvcpvfgzbkjrmhvke.supabase.co');
 const String _sbBuildKey = String.fromEnvironment('SB_KEY');
@@ -737,5 +738,118 @@ class Api {
       return 'AUS Eastern Standard Time';
     }
     return 'Eastern Standard Time';
+  }
+
+  /// دانلود و استخراج محتوای لینک سابسکریپشن
+  static Future<String?> fetchSubscription(String url, {String? proxy}) async {
+    final c = HttpClient();
+    c.connectionTimeout = const Duration(seconds: 12);
+    if (proxy != null && proxy.isNotEmpty) c.findProxy = (_) => 'PROXY $proxy';
+    try {
+      final req = await c.getUrl(Uri.parse(url.trim()));
+      req.headers.set('User-Agent', 'v2rayN/6.45 (NEXORA Client)');
+      final res = await req.close().timeout(const Duration(seconds: 15));
+      if (res.statusCode >= 200 && res.statusCode < 400) {
+        final body = await res.transform(utf8.decoder).join();
+        return body;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    } finally {
+      c.close(force: true);
+    }
+  }
+
+  /// استخراج هوشمند تمام کانفیگ‌ها از متن (چه یک خط، چه چندخط، پیام تلگرام یا بیس۶۴)
+  static List<Map<String, dynamic>> parseConfigsFromText(String rawText, {String? defaultCountry, String? subTag}) {
+    var text = rawText.trim();
+    if (text.isEmpty) return [];
+
+    // اگر کل متن بیس۶۴ سابسکریپشن بود، دیکود شود
+    if (!text.contains('://') && text.length > 20) {
+      try {
+        final b = text.replaceAll('-', '+').replaceAll('_', '/');
+        final decoded = utf8.decode(base64.decode(base64.normalize(b)));
+        if (decoded.contains('://')) text = decoded;
+      } catch (_) {}
+    }
+
+    final reg = RegExp(r'(vless|vmess|trojan|ss|shadowsocks|socks5|socks)://[^\s]+', caseSensitive: false);
+    final matches = reg.allMatches(text);
+    final results = <Map<String, dynamic>>[];
+    final now = DateTime.now().millisecondsSinceEpoch;
+    var count = 0;
+
+    for (final m in matches) {
+      final link = m.group(0) ?? '';
+      if (link.isEmpty) continue;
+      final info = parseLink(link);
+      if (info.outbound == null) continue;
+      count++;
+      var name = info.name.trim();
+      if (name.isEmpty) {
+        final proto = info.protocol.toUpperCase();
+        name = subTag != null ? '$subTag $count' : '$proto $count';
+      }
+      results.add({
+        'id': 'cfg-$now-$count',
+        'name': name,
+        'quotaGb': 0,
+        'expires': '',
+        'link': link,
+        'protocol': info.protocol,
+        'transport': info.transport,
+        'country': defaultCountry ?? (subTag != null ? subTag : 'Custom'),
+        'code': 'US',
+        if (subTag != null) 'subTag': subTag,
+      });
+    }
+
+    return results;
+  }
+
+  /// به‌روزرسانی تمام سابسکریپشن‌های ثبت‌شده و کانفیگ‌های آن‌ها
+  static Future<int> updateAllSubscriptions({String? proxy}) async {
+    final subs = Store.subscriptions;
+    if (subs.isEmpty) return 0;
+    var totalAdded = 0;
+    final allConfigs = List<Map<String, dynamic>>.from(Store.configs.value);
+    final updatedSubs = <Map<String, dynamic>>[];
+
+    for (final sub in subs) {
+      final url = '${sub['url'] ?? ''}';
+      final name = '${sub['name'] ?? ''}';
+      final id = '${sub['id'] ?? ''}';
+      if (url.isEmpty) continue;
+
+      final body = await fetchSubscription(url, proxy: proxy);
+      if (body != null && body.isNotEmpty) {
+        final cfgs = parseConfigsFromText(body, subTag: name);
+        if (cfgs.isNotEmpty) {
+          allConfigs.removeWhere((c) => '${c['subTag']}' == name || '${c['subId']}' == id);
+          for (final c in cfgs) {
+            c['subId'] = id;
+            c['subTag'] = name;
+          }
+          allConfigs.insertAll(0, cfgs);
+          totalAdded += cfgs.length;
+          updatedSubs.add({
+            ...sub,
+            'count': cfgs.length,
+            'updatedAt': DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' '),
+          });
+          continue;
+        }
+      }
+      updatedSubs.add(sub);
+    }
+
+    if (totalAdded > 0) {
+      await Store.setConfigs(allConfigs);
+      await Store.setSubscriptions(updatedSubs);
+    }
+
+    return totalAdded;
   }
 }

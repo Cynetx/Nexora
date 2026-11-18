@@ -220,12 +220,12 @@ void showIpQualitySheet(BuildContext context) {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
-                  icon: const Icon(Icons.card_giftcard_rounded, size: 20),
-                  label: const Text('دستیار هوشمند دریافت ۱۰۰ دلار آمازون (بدون کارت)',
+                  icon: const Icon(Icons.shield_rounded, size: 20),
+                  label: const Text('سپر امنیت و راه‌اندازی مرورگر ایزوله',
                       style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                   onPressed: () {
                     Navigator.pop(ctx);
-                    showAwsAssistantSheet(context);
+                    showSecurityShieldSheet(context);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -637,7 +637,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Text('بررسی اصالت و سلامت آی‌پی', style: TextStyle(color: p.text, fontSize: 13.5, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
-                        Text(on ? 'تست نمره تقلب، نوع مسکونی و نشت ویژه آمازون و جمینای' : 'تست نمره سلامت و مشخصات آی‌پی اینترنت فعلی', style: TextStyle(color: p.sub, fontSize: 11)),
+                        Text(on ? 'تست نمره تقلب، نوع مسکونی/دیتاسنتر، بلک‌لیست و عدم نشت' : 'تست نمره سلامت و مشخصات آی‌پی اینترنت فعلی', style: TextStyle(color: p.sub, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -648,10 +648,10 @@ class _HomePageState extends State<HomePage> {
           ),
         );
 
-        final awsAssistantButton = Padding(
+        final securityShieldButton = Padding(
           padding: const EdgeInsets.only(top: 2, bottom: 4),
           child: Panel(
-            onTap: () => showAwsAssistantSheet(context),
+            onTap: () => showSecurityShieldSheet(context),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             child: Directionality(
               textDirection: TextDirection.rtl,
@@ -661,13 +661,13 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF9900), Color(0xFFFF5500)],
+                        colors: [Color(0xFF0072FF), Color(0xFF00C6FF)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 20),
+                    child: const Icon(Icons.shield_rounded, color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -676,7 +676,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Row(
                           children: [
-                            Text('دستیار دریافت ۱۰۰ دلار آمازون',
+                            Text('سپر امنیت و مرورگر ایزوله',
                                 style: TextStyle(color: p.text, fontSize: 13.5, fontWeight: FontWeight.w700)),
                             const SizedBox(width: 6),
                             Container(
@@ -685,13 +685,13 @@ class _HomePageState extends State<HomePage> {
                                 color: const Color(0xFF29E07F).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(5),
                               ),
-                              child: const Text('۹۹٪ قبولی',
+                              child: const Text('ضد نشت',
                                   style: TextStyle(color: Color(0xFF29E07F), fontSize: 10, fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text('آماده‌سازی خودکار ویندوز + آدرس معتبر آمریکا + ثبت‌نام بدون کارت',
+                        Text('مسدودسازی نشت WebRTC + هماهنگی ساعت + تست سلامت آی‌پی',
                             style: TextStyle(color: p.sub, fontSize: 11)),
                       ],
                     ),
@@ -709,7 +709,7 @@ class _HomePageState extends State<HomePage> {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
               padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-              children: [top, brand, const SizedBox(height: 18), server, connect, state, const ConnectStages(), note, const SizedBox(height: 6), qualityButton, awsAssistantButton, speeds],
+              children: [top, brand, const SizedBox(height: 18), server, connect, state, const ConnectStages(), note, const SizedBox(height: 6), qualityButton, securityShieldButton, speeds],
             ),
           );
         }
@@ -721,7 +721,7 @@ class _HomePageState extends State<HomePage> {
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(flex: 5, child: Column(children: [connect, state, const ConnectStages(), note])),
               const SizedBox(width: 24),
-              Expanded(flex: 4, child: Column(children: [server, const SizedBox(height: 14), qualityButton, awsAssistantButton, speeds])),
+              Expanded(flex: 4, child: Column(children: [server, const SizedBox(height: 14), qualityButton, securityShieldButton, speeds])),
             ]),
           ],
         );
@@ -750,28 +750,40 @@ class LocationsPage extends StatefulWidget {
 
 class _LocationsPageState extends State<LocationsPage> {
   final Map<String, int> _ms = {};
-  final Set<String> _rowPinging = {}; // ردیف‌هایی که همین الان فقط خودشان در حال تست‌اند
+  final Set<String> _rowPinging = {};
   bool _pinging = false;
   bool _busy = false;
+
+  final TextEditingController _searchCtl = TextEditingController();
+  String _searchQuery = '';
+  String _protoFilter = 'all'; // 'all', 'working', 'vless', 'vmess', 'trojan', 'shadowsocks'
+  bool _sortByPing = true;
 
   @override
   void initState() {
     super.initState();
-    // نتایج کش‌شده‌ی تست پس‌زمینه فوری نمایش داده می‌شود؛ اگر کامل و تازه باشند، تست دوباره‌ی کامل لازم نیست.
     final vs = VpnService.I;
     final cfgs = Store.configs.value;
     for (final c in cfgs) {
       final v = vs.pingCache['${c['id']}'];
       if (v != null) _ms['${c['id']}'] = v;
     }
-    // فقط لوکیشن/کانفیگ انتخاب‌شده تست می‌شود (حالت «خودکار» چون باید بهترین را پیدا کند، همه را می‌خواهد)
     final target = Store.candidates();
     final at = vs.pingCacheAt;
-    final fresh = at != null && DateTime.now().difference(at).inMinutes < 3 && target.isNotEmpty && target.every((c) => _ms.containsKey('${c['id']}'));
+    final fresh = at != null &&
+        DateTime.now().difference(at).inMinutes < 3 &&
+        target.isNotEmpty &&
+        target.every((c) => _ms.containsKey('${c['id']}'));
     if (!fresh) WidgetsBinding.instance.addPostFrameCallback((_) => _pingAll());
   }
 
-  /// پینگ واقعی فقط یک کانفیگ (لمس چیپ پینگ همان ردیف)؛ بقیه‌ی کانفیگ‌ها تست نمی‌شوند.
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  /// پینگ واقعی فقط یک کانفیگ
   Future<void> _pingOne(Map<String, dynamic> c) async {
     final id = '${c['id']}';
     if (_pinging || _rowPinging.contains(id)) return;
@@ -792,7 +804,7 @@ class _LocationsPageState extends State<LocationsPage> {
     });
   }
 
-  /// پینگ انتخاب‌شده: اگر لوکیشن/سرور مشخصی انتخاب شده فقط همان‌ها؛ در حالت «خودکار» همه.
+  /// پینگ همه کانفیگ‌ها
   Future<void> _pingAll() async {
     if (_pinging) return;
     final list = List<Map<String, dynamic>>.from(Store.candidates());
@@ -813,7 +825,7 @@ class _LocationsPageState extends State<LocationsPage> {
       var bestMs = 1 << 30;
 
       void record(Map<String, dynamic> c, int ms) {
-        if (ctl.cancelRequested) return; // بعد از «لغو» هیچ نتیجه‌ای ثبت/نمایش داده نمی‌شود
+        if (ctl.cancelRequested) return;
         if (Api.validPing(ms) && ms < bestMs) {
           bestMs = ms;
           best = c;
@@ -821,7 +833,6 @@ class _LocationsPageState extends State<LocationsPage> {
         if (mounted) setState(() => _ms['${c['id']}'] = ms);
       }
 
-      // همه‌ی کانفیگ‌ها تست می‌شوند (محدودیت ۳ تایی حذف شد)؛ همزمانی را خود VpnService کنترل می‌کند.
       Future<void> runPass(List<Map<String, dynamic>> items, int workers, bool report) async {
         var next = 0;
         Future<void> worker() async {
@@ -898,7 +909,153 @@ class _LocationsPageState extends State<LocationsPage> {
     Navigator.pop(context);
   }
 
-  void _addCustomConfig(BuildContext context) {
+  /// افزودن هوشمند از کلیپ‌بورد (پشتیبانی از چندین کانفیگ، بیس۶۴ یا پیام‌های تلگرام)
+  Future<void> _importFromClipboard() async {
+    final d = await Clipboard.getData('text/plain');
+    final raw = d?.text?.trim() ?? '';
+    if (raw.isEmpty) {
+      if (mounted) snack(context, 'کلیپ‌بورد خالی است؛ ابتدا لینک کانفیگ را کپی کنید');
+      return;
+    }
+
+    final parsed = Api.parseConfigsFromText(raw);
+    if (parsed.isEmpty) {
+      // بررسی لینک سابسکریپشن
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        await _fetchAndAddSubscription('سابسکریپشن کلیپ‌بورد', raw);
+        return;
+      }
+      if (mounted) snack(context, 'کانفیگ معتبری در کلیپ‌بورد یافت نشد');
+      return;
+    }
+
+    final cur = List<Map<String, dynamic>>.from(Store.configs.value);
+    cur.insertAll(0, parsed);
+    await Store.setConfigs(cur);
+    if (parsed.isNotEmpty) {
+      await Store.setServerId('${parsed.first['id']}');
+      Store.applySelection();
+    }
+    if (mounted) {
+      setState(() {});
+      snack(context, '${parsed.length} کانفیگ با موفقیت اضافه شد');
+      _pingAll();
+    }
+  }
+
+  /// دانلود و ثبت سابسکریپشن
+  Future<void> _fetchAndAddSubscription(String name, String url) async {
+    setState(() => _busy = true);
+    final body = await Api.fetchSubscription(url);
+    if (body == null || body.isEmpty) {
+      if (mounted) {
+        setState(() => _busy = false);
+        snack(context, 'خطا در دریافت سابسکریپشن؛ اتصال اینترنت یا آدرس را بررسی کنید');
+      }
+      return;
+    }
+
+    final cfgs = Api.parseConfigsFromText(body, subTag: name);
+    if (cfgs.isEmpty) {
+      if (mounted) {
+        setState(() => _busy = false);
+        snack(context, 'هیچ کانفیگ معتبری در سابسکریپشن یافت نشد');
+      }
+      return;
+    }
+
+    await Store.addSubscription(name, url, count: cfgs.length);
+    final cur = List<Map<String, dynamic>>.from(Store.configs.value);
+    for (final c in cfgs) {
+      c['subTag'] = name;
+    }
+    cur.insertAll(0, cfgs);
+    await Store.setConfigs(cur);
+    if (cfgs.isNotEmpty) {
+      await Store.setServerId('${cfgs.first['id']}');
+      Store.applySelection();
+    }
+
+    if (mounted) {
+      setState(() => _busy = false);
+      snack(context, 'سابسکریپشن اضافه شد (${cfgs.length} کانفیگ)');
+      _pingAll();
+    }
+  }
+
+  /// دیالوگ افزودن سابسکریپشن
+  void _addSubscriptionDialog(BuildContext context) {
+    final nameCtl = TextEditingController(text: 'سابسکریپشن ${Store.subscriptions.length + 1}');
+    final urlCtl = TextEditingController();
+    final p = P.of(context);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('افزودن لینک سابسکریپشن (Subscription)',
+            style: TextStyle(color: p.text, fontSize: 15.5, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: nameCtl,
+              style: TextStyle(color: p.text, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'نام سابسکریپشن',
+                labelStyle: TextStyle(color: p.sub, fontSize: 12),
+                filled: true,
+                fillColor: p.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: urlCtl,
+              style: TextStyle(color: p.text, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'لینک سابسکریپشن (https://...)',
+                labelStyle: TextStyle(color: p.sub, fontSize: 12),
+                hintText: 'https://...',
+                hintStyle: TextStyle(color: p.sub.withOpacity(0.4), fontSize: 12),
+                filled: true,
+                fillColor: p.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.content_paste_rounded, size: 16),
+              label: const Text('جای‌گذاری از کلیپ‌بورد'),
+              onPressed: () async {
+                final d = await Clipboard.getData('text/plain');
+                if (d?.text != null) urlCtl.text = d!.text!.trim();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: p.accent, foregroundColor: Colors.white),
+            onPressed: () {
+              final url = urlCtl.text.trim();
+              final name = nameCtl.text.trim();
+              if (url.isEmpty) return;
+              Navigator.pop(ctx);
+              _fetchAndAddSubscription(name, url);
+            },
+            child: const Text('دریافت و ذخیره'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// افزودن دستی کانفیگ
+  void _addManualConfigDialog(BuildContext context) {
     final ctl = TextEditingController();
     final p = P.of(context);
     showDialog<void>(
@@ -906,23 +1063,24 @@ class _LocationsPageState extends State<LocationsPage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: p.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('افزودن سرور شخصی', style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text('افزودن دستی کانفیگ', style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('لینک کانفیگ (vless, vmess, trojan, ss) را پیست کنید:', style: TextStyle(color: p.sub, fontSize: 12)),
+            Text('لینک کانفیگ (vless, vmess, trojan, ss, socks5) را پیست کنید:',
+                style: TextStyle(color: p.sub, fontSize: 12)),
             const SizedBox(height: 10),
             TextField(
               controller: ctl,
               maxLines: 3,
               style: TextStyle(color: p.text, fontSize: 12),
               decoration: InputDecoration(
-                hintText: 'vless://... یا vmess://...',
+                hintText: 'vless://... یا vmess://... یا trojan://...',
                 hintStyle: TextStyle(color: p.sub.withOpacity(0.5)),
                 filled: true,
                 fillColor: p.bg,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: p.border)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 8),
@@ -942,30 +1100,19 @@ class _LocationsPageState extends State<LocationsPage> {
             onPressed: () async {
               final text = ctl.text.trim();
               if (text.isEmpty) return;
-              final info = parseLink(text);
-              if (info.outbound == null) {
+              final parsed = Api.parseConfigsFromText(text);
+              if (parsed.isEmpty) {
                 snack(context, 'لینک کانفیگ نامعتبر است');
                 return;
               }
-              final newCfg = {
-                'id': 'custom-${DateTime.now().millisecondsSinceEpoch}',
-                'name': info.name.isNotEmpty ? info.name : 'سرور شخصی',
-                'quotaGb': 0,
-                'expires': '',
-                'link': text,
-                'protocol': info.protocol,
-                'transport': info.transport,
-                'country': 'Custom',
-                'code': 'US',
-              };
               final cur = List<Map<String, dynamic>>.from(Store.configs.value);
-              cur.insert(0, newCfg);
+              cur.insertAll(0, parsed);
               await Store.setConfigs(cur);
-              await Store.setServerId('${newCfg['id']}');
+              await Store.setServerId('${parsed.first['id']}');
               Store.applySelection();
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) setState(() {});
-              snack(context, 'کانفیگ اضافه و انتخاب شد');
+              snack(context, '${parsed.length} کانفیگ اضافه و انتخاب شد');
               _pingAll();
             },
             child: const Text('افزودن و انتخاب'),
@@ -975,12 +1122,158 @@ class _LocationsPageState extends State<LocationsPage> {
     );
   }
 
-  Widget _radio(P p, bool sel) => Icon(sel ? Icons.radio_button_checked : Icons.radio_button_off, color: sel ? p.accent2 : p.sub, size: 26);
+  /// حذف کانفیگ‌های قطع / بدون پاسخ (Clean Dead Configs)
+  Future<void> _cleanDeadConfigs() async {
+    final cur = List<Map<String, dynamic>>.from(Store.configs.value);
+    final dead = cur.where((c) {
+      final v = _ms['${c['id']}'];
+      return v != null && v < 0;
+    }).toList();
+
+    if (dead.isEmpty) {
+      snack(context, 'هیچ کانفیگ قطعی در نتایج تست یافت نشد (ابتدا پینگ بگیرید)');
+      return;
+    }
+
+    final deadIds = dead.map((e) => '${e['id']}').toSet();
+    cur.removeWhere((c) => deadIds.contains('${c['id']}'));
+    await Store.setConfigs(cur);
+    for (final id in deadIds) {
+      _ms.remove(id);
+    }
+    if (mounted) setState(() {});
+    snack(context, '${dead.length} کانفیگ قطع با موفقیت حذف شد');
+  }
+
+  /// به‌روزرسانی تمام سابسکریپشن‌ها
+  Future<void> _updateSubscriptions() async {
+    setState(() => _busy = true);
+    final added = await Api.updateAllSubscriptions();
+    if (mounted) {
+      setState(() => _busy = false);
+      snack(context, added > 0 ? '$added کانفیگ از سابسکریپشن‌ها به‌روزرسانی شد' : 'سابسکریپشن‌ها بدون تغییر بودند یا پاسخی دریافت نشد');
+      _pingAll();
+    }
+  }
+
+  /// نمایش کد QR برای اشتراک‌گذاری
+  void _showQrDialog(Map<String, dynamic> c) {
+    final link = '${c['link'] ?? ''}';
+    final name = cfgTitle(c);
+    final p = P.of(context);
+    final qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${Uri.encodeComponent(link)}';
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(name, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: 15, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Image.network(
+                qrUrl,
+                width: 200,
+                height: 200,
+                loadingBuilder: (ctx, child, progress) => progress == null
+                    ? child
+                    : const SizedBox(width: 200, height: 200, child: Center(child: CircularProgressIndicator())),
+                errorBuilder: (_, __, ___) => const SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: Center(child: Icon(Icons.qr_code_2_rounded, size: 80, color: Colors.grey)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('اسکن با گوشی یا اپلیکیشن‌های وی‌پی‌ان', style: TextStyle(color: p.sub, fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('بستن')),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: p.accent, foregroundColor: Colors.white),
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('کپی لینک کانفیگ'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: link));
+              Navigator.pop(ctx);
+              snack(context, 'لینک کانفیگ کپی شد');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ویرایش نام کانفیگ
+  void _editConfigName(Map<String, dynamic> c) {
+    final ctl = TextEditingController(text: cfgTitle(c));
+    final p = P.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('ویرایش نام کانفیگ', style: TextStyle(color: p.text, fontSize: 15.5, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctl,
+          style: TextStyle(color: p.text, fontSize: 13),
+          decoration: InputDecoration(
+            labelText: 'نام سرور',
+            labelStyle: TextStyle(color: p.sub, fontSize: 12),
+            filled: true,
+            fillColor: p.bg,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = ctl.text.trim();
+              if (newName.isNotEmpty) {
+                final cur = List<Map<String, dynamic>>.from(Store.configs.value);
+                final idx = cur.indexWhere((e) => '${e['id']}' == '${c['id']}');
+                if (idx >= 0) {
+                  cur[idx]['name'] = newName;
+                  await Store.setConfigs(cur);
+                  if (mounted) setState(() {});
+                }
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('ذخیره'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// حذف یک کانفیگ
+  Future<void> _deleteConfig(Map<String, dynamic> c) async {
+    final cur = List<Map<String, dynamic>>.from(Store.configs.value);
+    cur.removeWhere((e) => '${e['id']}' == '${c['id']}');
+    await Store.setConfigs(cur);
+    _ms.remove('${c['id']}');
+    if (mounted) setState(() {});
+    snack(context, 'کانفیگ حذف شد');
+  }
+
+  Widget _radio(P p, bool sel) => Icon(sel ? Icons.radio_button_checked : Icons.radio_button_off,
+      color: sel ? p.accent2 : p.sub, size: 24);
 
   Widget _header(P p) => Directionality(
         textDirection: TextDirection.ltr,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(6, 6, 14, 10),
+          padding: const EdgeInsets.fromLTRB(6, 6, 10, 6),
           child: Row(children: [
             SizedBox(
               width: 44,
@@ -989,28 +1282,126 @@ class _LocationsPageState extends State<LocationsPage> {
                 icon: Icon(Icons.chevron_left_rounded, color: p.text, size: 34),
               ),
             ),
-            Expanded(child: Center(child: Text('سرورها', style: TextStyle(color: p.text, fontSize: 20, fontWeight: FontWeight.w800)))),
-            IconButton(
-              tooltip: 'افزودن سرور شخصی',
-              icon: Icon(Icons.add_link_rounded, color: p.accent2, size: 26),
-              onPressed: () => _addCustomConfig(context),
+            Expanded(
+              child: Center(
+                child: Text('سرورها و کانفیگ‌ها',
+                    style: TextStyle(color: p.text, fontSize: 18, fontWeight: FontWeight.w800)),
+              ),
+            ),
+            // دکمه منوی افزودن
+            PopupMenuButton<String>(
+              tooltip: 'افزودن کانفیگ',
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: p.accent.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.add_rounded, color: p.accent2, size: 24),
+              ),
+              color: p.card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              onSelected: (v) {
+                if (v == 'clipboard') _importFromClipboard();
+                if (v == 'sub') _addSubscriptionDialog(context);
+                if (v == 'manual') _addManualConfigDialog(context);
+              },
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: 'clipboard',
+                  child: Row(children: const [
+                    Icon(Icons.content_paste_go_rounded, color: Color(0xFF29E07F), size: 20),
+                    SizedBox(width: 10),
+                    Text('افزودن هوشمند از کلیپ‌بورد', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'sub',
+                  child: Row(children: const [
+                    Icon(Icons.cloud_download_rounded, color: Color(0xFF33B5FF), size: 20),
+                    SizedBox(width: 10),
+                    Text('افزودن لینک سابسکریپشن', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'manual',
+                  child: Row(children: const [
+                    Icon(Icons.edit_note_rounded, color: Colors.amber, size: 20),
+                    SizedBox(width: 10),
+                    Text('افزودن دستی لینک کانفیگ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ],
+            ),
+            // دکمه عملیات بیشتر
+            PopupMenuButton<String>(
+              tooltip: 'ابزارها',
+              icon: Icon(Icons.more_vert_rounded, color: p.text, size: 24),
+              color: p.card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              onSelected: (v) {
+                if (v == 'update_subs') _updateSubscriptions();
+                if (v == 'clean_dead') _cleanDeadConfigs();
+                if (v == 'sort') setState(() => _sortByPing = !_sortByPing);
+                if (v == 'clear') {
+                  Store.setConfigs([]);
+                  setState(() {});
+                  snack(context, 'تمام کانفیگ‌ها پاک شدند');
+                }
+              },
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: 'update_subs',
+                  child: Row(children: const [
+                    Icon(Icons.sync_rounded, color: Color(0xFF33B5FF), size: 19),
+                    SizedBox(width: 10),
+                    Text('به‌روزرسانی سابسکریپشن‌ها', style: TextStyle(fontSize: 12.5)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'clean_dead',
+                  child: Row(children: const [
+                    Icon(Icons.cleaning_services_rounded, color: Colors.orangeAccent, size: 19),
+                    SizedBox(width: 10),
+                    Text('پاکسازی کانفیگ‌های قطع و خراب', style: TextStyle(fontSize: 12.5)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'sort',
+                  child: Row(children: [
+                    Icon(Icons.sort_rounded, color: p.accent2, size: 19),
+                    const SizedBox(width: 10),
+                    Text(_sortByPing ? 'مرتب‌سازی پیش‌فرض' : 'مرتب‌سازی بر اساس کمترین پینگ',
+                        style: const TextStyle(fontSize: 12.5)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'clear',
+                  child: Row(children: const [
+                    Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 19),
+                    SizedBox(width: 10),
+                    Text('پاک کردن همه کانفیگ‌ها', style: TextStyle(fontSize: 12.5, color: Colors.redAccent)),
+                  ]),
+                ),
+              ],
             ),
             const SizedBox(width: 4),
+            // دکمه پینگ
             GestureDetector(
               onTap: _pingAll,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: [p.accent, p.accent2]),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: p.accent.withOpacity(0.45), blurRadius: 12)],
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [BoxShadow(color: p.accent.withOpacity(0.4), blurRadius: 10)],
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   _pinging
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.speed_rounded, color: Colors.white, size: 18),
-                  const SizedBox(width: 6),
-                  const Text('پینگ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                      ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.speed_rounded, color: Colors.white, size: 17),
+                  const SizedBox(width: 5),
+                  const Text('پینگ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
                 ]),
               ),
             ),
@@ -1018,26 +1409,144 @@ class _LocationsPageState extends State<LocationsPage> {
         ),
       );
 
+  Widget _searchAndFilterBar(P p) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      child: Column(
+        children: [
+          // فیلد جستجو
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: p.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: p.border.withOpacity(0.4)),
+            ),
+            child: TextField(
+              controller: _searchCtl,
+              textDirection: TextDirection.rtl,
+              style: TextStyle(color: p.text, fontSize: 12.5),
+              onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                hintText: 'جستجو در نام، کشور یا پروتکل...',
+                hintStyle: TextStyle(color: p.sub.withOpacity(0.6), fontSize: 12),
+                border: InputBorder.none,
+                prefixIcon: Icon(Icons.search_rounded, color: p.sub, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.close_rounded, color: p.sub, size: 18),
+                        onPressed: () {
+                          _searchCtl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // چیپ‌های فیلتر سریع
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _filterChip('همه', 'all', p),
+                _filterChip('سالم (دارای پینگ)', 'working', p),
+                _filterChip('VLESS', 'vless', p),
+                _filterChip('VMESS', 'vmess', p),
+                _filterChip('Trojan', 'trojan', p),
+                _filterChip('Shadowsocks', 'shadowsocks', p),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, String key, P p) {
+    final sel = _protoFilter == key;
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: GestureDetector(
+        onTap: () => setState(() => _protoFilter = key),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: sel ? p.accent.withOpacity(0.25) : p.card,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: sel ? p.accent : p.border.withOpacity(0.4)),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: sel ? p.accent2 : p.sub,
+              fontSize: 11,
+              fontWeight: sel ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _pingChip(P p, String id) {
     final v = _ms[id];
-    const green = Color(0xFF29E07F);
-    final Widget chip;
     if (_rowPinging.contains(id)) {
-      chip = const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: green));
-    } else if (v == null) {
-      chip = _pinging
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: green))
-          : Text('—', style: TextStyle(color: p.sub));
-    } else if (v < 0) {
-      chip = const Text('timeout', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w700));
-    } else {
-      chip = Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: green, shape: BoxShape.circle, boxShadow: [BoxShadow(color: green.withOpacity(0.8), blurRadius: 6)])),
-        const SizedBox(width: 5),
-        Text('$v ms', style: const TextStyle(color: green, fontSize: 13, fontWeight: FontWeight.w800)),
-      ]);
+      return const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF29E07F)));
     }
-    return chip;
+    if (v == null) {
+      return _pinging
+          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF29E07F)))
+          : Text('—', style: TextStyle(color: p.sub, fontSize: 12));
+    }
+    if (v < 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text('قطع', style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+      );
+    }
+    final col = v < 250 ? const Color(0xFF29E07F) : (v < 500 ? Colors.amber : Colors.orangeAccent);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: col.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 6, height: 6, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text('$v ms', style: TextStyle(color: col, fontSize: 12, fontWeight: FontWeight.w800)),
+      ]),
+    );
+  }
+
+  Widget _protoBadge(String proto) {
+    final up = proto.toUpperCase();
+    Color bg = const Color(0xFF33B5FF);
+    if (up.contains('VLESS')) bg = const Color(0xFF00C6FF);
+    if (up.contains('VMESS')) bg = const Color(0xFFFF9900);
+    if (up.contains('TROJAN')) bg = const Color(0xFFA855F7);
+    if (up.contains('SHADOW') || up == 'SS') bg = const Color(0xFF10B981);
+    if (up.contains('SOCKS')) bg = const Color(0xFF14B8A6);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: bg.withOpacity(0.4), width: 0.8),
+      ),
+      child: Text(
+        up.isEmpty ? 'PROXY' : up,
+        style: TextStyle(color: bg, fontSize: 9.5, fontWeight: FontWeight.w800),
+      ),
+    );
   }
 
   Widget _cfgRow(P p, Map<String, dynamic> c, String sid) {
@@ -1046,37 +1555,120 @@ class _LocationsPageState extends State<LocationsPage> {
     final code = '${c['code'] ?? ''}';
     final proto = '${c['protocol'] ?? ''}'.toUpperCase();
     final tr = '${c['transport'] ?? ''}';
-    final kind = proto.isEmpty ? '' : (tr.isEmpty ? proto : '$proto · $tr');
+    final subTag = '${c['subTag'] ?? ''}';
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _choose(id, cfgTitle(c)),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Directionality(
             textDirection: TextDirection.ltr,
             child: Row(children: [
-              PinIcon(size: 44, color: p.accent2, animate: false),
-              const SizedBox(width: 10),
+              // بج پروتکل و پرچم
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(flagOf(code).isNotEmpty ? flagOf(code) : '🌐', style: const TextStyle(fontSize: 18)),
+                  const SizedBox(height: 3),
+                  _protoBadge(proto),
+                ],
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(cfgTitle(c), textDirection: TextDirection.rtl, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: 15, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 3),
-                  Text(
-                    country.isEmpty || cfgTitle(c).contains(country) ? '' : '${flagOf(code)} $country',
-                    textDirection: TextDirection.rtl,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: p.sub, fontSize: 12),
+                  Text(cfgTitle(c),
+                      textDirection: TextDirection.rtl,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: p.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      if (tr.isNotEmpty) ...[
+                        Text(tr.toUpperCase(), style: TextStyle(color: p.sub.withOpacity(0.7), fontSize: 10.5, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 6),
+                      ],
+                      if (subTag.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(color: p.sub.withOpacity(0.15), borderRadius: BorderRadius.circular(3)),
+                          child: Text(subTag, style: TextStyle(color: p.sub, fontSize: 10)),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      if (country.isNotEmpty && !cfgTitle(c).contains(country))
+                        Text(country, style: TextStyle(color: p.sub, fontSize: 11)),
+                    ],
                   ),
                 ]),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
+              // دکمه پینگ تکی
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _pingOne(c),
-                child: Padding(padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6), child: _pingChip(p, id)),
+                child: Padding(padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4), child: _pingChip(p, id)),
               ),
-              const SizedBox(width: 10),
+              // منوی ۳ نقطه برای عملیات
+              PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.more_vert_rounded, color: p.sub.withOpacity(0.7), size: 20),
+                color: p.card,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onSelected: (v) {
+                  if (v == 'copy') {
+                    Clipboard.setData(ClipboardData(text: '${c['link']}'));
+                    snack(context, 'لینک کانفیگ کپی شد');
+                  }
+                  if (v == 'qr') _showQrDialog(c);
+                  if (v == 'edit') _editConfigName(c);
+                  if (v == 'ping') _pingOne(c);
+                  if (v == 'del') _deleteConfig(c);
+                },
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                    value: 'copy',
+                    child: Row(children: const [
+                      Icon(Icons.copy_rounded, size: 16),
+                      SizedBox(width: 8),
+                      Text('کپی لینک', style: TextStyle(fontSize: 12.5)),
+                    ]),
+                  ),
+                  PopupMenuItem(
+                    value: 'qr',
+                    child: Row(children: const [
+                      Icon(Icons.qr_code_2_rounded, size: 16),
+                      SizedBox(width: 8),
+                      Text('نمایش بارکد QR', style: TextStyle(fontSize: 12.5)),
+                    ]),
+                  ),
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(children: const [
+                      Icon(Icons.edit_rounded, size: 16),
+                      SizedBox(width: 8),
+                      Text('ویرایش نام', style: TextStyle(fontSize: 12.5)),
+                    ]),
+                  ),
+                  PopupMenuItem(
+                    value: 'ping',
+                    child: Row(children: const [
+                      Icon(Icons.speed_rounded, size: 16),
+                      SizedBox(width: 8),
+                      Text('تست پینگ', style: TextStyle(fontSize: 12.5)),
+                    ]),
+                  ),
+                  PopupMenuItem(
+                    value: 'del',
+                    child: Row(children: const [
+                      Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 16),
+                      SizedBox(width: 8),
+                      Text('حذف', style: TextStyle(color: Colors.redAccent, fontSize: 12.5)),
+                    ]),
+                  ),
+                ],
+              ),
               _radio(p, sid == id),
             ]),
           ),
@@ -1094,6 +1686,7 @@ class _LocationsPageState extends State<LocationsPage> {
         child: SafeArea(
           child: Column(children: [
             _header(p),
+            _searchAndFilterBar(p),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _refresh,
@@ -1101,34 +1694,84 @@ class _LocationsPageState extends State<LocationsPage> {
                   valueListenable: Store.configs,
                   builder: (context, list, _) {
                     final sid = Store.serverId;
+
+                    // فیلتر کردن کانفیگ‌ها
+                    var filtered = list.where((c) {
+                      if (_searchQuery.isNotEmpty) {
+                        final title = cfgTitle(c).toLowerCase();
+                        final proto = '${c['protocol'] ?? ''}'.toLowerCase();
+                        final country = '${c['country'] ?? ''}'.toLowerCase();
+                        final sub = '${c['subTag'] ?? ''}'.toLowerCase();
+                        if (!title.contains(_searchQuery) &&
+                            !proto.contains(_searchQuery) &&
+                            !country.contains(_searchQuery) &&
+                            !sub.contains(_searchQuery)) {
+                          return false;
+                        }
+                      }
+                      if (_protoFilter == 'working') {
+                        final v = _ms['${c['id']}'];
+                        if (v == null || v <= 0) return false;
+                      } else if (_protoFilter != 'all') {
+                        final pr = '${c['protocol'] ?? ''}'.toLowerCase();
+                        if (_protoFilter == 'shadowsocks') {
+                          if (pr != 'shadowsocks' && pr != 'ss') return false;
+                        } else if (pr != _protoFilter) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    }).toList();
+
                     final children = <Widget>[
                       Group(children: [
                         Tile(
                           icon: Icons.auto_awesome_rounded,
                           iconColor: Colors.amber,
-                          title: 'خودکار',
-                          subtitle: 'تست همه و اتصال به اولین سرور سالم',
+                          title: 'خودکار (بهترین پینگ)',
+                          subtitle: 'تست همه و اتصال به سریع‌ترین سرور سالم',
                           trailing: _radio(p, sid.isEmpty || sid.startsWith('loc:')),
                           onTap: () => _choose('', 'خودکار'),
                         ),
                       ]),
                     ];
-                    if (list.isEmpty) {
+
+                    if (filtered.isEmpty) {
                       children.add(Padding(
-                        padding: const EdgeInsets.all(30),
-                        child: Center(child: Text('کانفیگی وجود ندارد؛ بکش پایین تا به‌روز شود', textAlign: TextAlign.center, style: TextStyle(color: p.sub))),
+                        padding: const EdgeInsets.all(40),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(Icons.filter_list_off_rounded, color: p.sub.withOpacity(0.5), size: 48),
+                              const SizedBox(height: 12),
+                              Text('کانفیگی یافت نشد', style: TextStyle(color: p.text, fontSize: 14, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 6),
+                              Text('از دکمه «+» بالا برای افزودن از کلیپ‌بورد یا سابسکریپشن استفاده کنید',
+                                  textAlign: TextAlign.center, style: TextStyle(color: p.sub, fontSize: 12)),
+                            ],
+                          ),
+                        ),
                       ));
                     } else {
-                      int rank(Map<String, dynamic> c) {
-                        final v = _ms['${c['id']}'];
-                        if (v == null) return 1 << 29;
-                        if (!Api.validPing(v)) return 1 << 30;
-                        return v;
+                      if (_sortByPing) {
+                        int rank(Map<String, dynamic> c) {
+                          final v = _ms['${c['id']}'];
+                          if (v == null) return 1 << 29;
+                          if (!Api.validPing(v)) return 1 << 30;
+                          return v;
+                        }
+                        filtered.sort((a, b) => rank(a).compareTo(rank(b)));
                       }
-                      final sorted = List<Map<String, dynamic>>.from(list)..sort((a, b) => rank(a).compareTo(rank(b)));
-                      children.add(Group(children: [for (final c in sorted) _cfgRow(p, c, sid)]));
+                      children.add(Group(children: [for (final c in filtered) _cfgRow(p, c, sid)]));
                     }
-                    if (_busy) children.add(const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())));
+
+                    if (_busy) {
+                      children.add(const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(child: CircularProgressIndicator()),
+                      ));
+                    }
+
                     return ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -1714,7 +2357,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'با اتصال پروکسی مسکونی (Residential SOCKS5)، ترافیک ابتدا از سرور ضد فیلتر و سپس از آی‌پی خانگی خارج می‌شود تا آمازون و پی‌پال شما را کاربر واقعی خانگی تشخیص دهند.',
+                'با اتصال پروکسی مسکونی (Residential SOCKS5)، ترافیک ابتدا از سرور ضد فیلتر و سپس از آی‌پی خانگی خارج می‌شود تا هویت شما کاملاً تمیز و ناشناس بماند.',
                 style: TextStyle(color: p.sub, fontSize: 12.5, height: 1.45),
               ),
               const SizedBox(height: 14),
@@ -1766,6 +2409,53 @@ class _AdvancedPageState extends State<AdvancedPage> {
     );
   }
 
+  void _chooseRoutingMode(BuildContext context) {
+    final p = P.of(context);
+    final cur = Store.routingMode;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('حالت مسیریابی ترافیک (Routing)', style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              tileColor: cur == 'bypass_lan_iran' ? p.accent.withOpacity(0.15) : null,
+              leading: Icon(Icons.hub_rounded, color: cur == 'bypass_lan_iran' ? p.accent2 : p.sub),
+              title: const Text('دور زدن ایران و شبکه داخلی (پیشنهادی)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              subtitle: const Text('سایت‌های بانکی، اسنپ و دامنه‌های .ir مستقیم باز می‌شوند', style: TextStyle(fontSize: 11)),
+              trailing: Icon(cur == 'bypass_lan_iran' ? Icons.check_circle_rounded : Icons.radio_button_off, color: cur == 'bypass_lan_iran' ? p.accent2 : p.sub),
+              onTap: () async {
+                await Store.setRoutingMode('bypass_lan_iran');
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) setState(() {});
+                if (context.mounted) snack(context, 'حالت مسیریابی: دور زدن ایران و شبکه داخلی');
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              tileColor: cur == 'global' ? p.accent.withOpacity(0.15) : null,
+              leading: Icon(Icons.public_rounded, color: cur == 'global' ? p.accent2 : p.sub),
+              title: const Text('پروکسی کل ترافیک (Global)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              subtitle: const Text('تمام ترافیک بدون استثنا از سرور وی‌پی‌ان عبور می‌کند', style: TextStyle(fontSize: 11)),
+              trailing: Icon(cur == 'global' ? Icons.check_circle_rounded : Icons.radio_button_off, color: cur == 'global' ? p.accent2 : p.sub),
+              onTap: () async {
+                await Store.setRoutingMode('global');
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) setState(() {});
+                if (context.mounted) snack(context, 'حالت مسیریابی: پروکسی کل ترافیک');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SubPage(title: 'تنظیمات پیشرفته', icon: Icons.settings_rounded, children: [
@@ -1781,15 +2471,27 @@ class _AdvancedPageState extends State<AdvancedPage> {
             Store.setTheme(m == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark);
           },
         ),
-        _sw(Icons.security_rounded, Colors.amberAccent, 'حالت ضد فیلترینگ شدید (Stealth Fragment)', 'تکه‌تکه کردن پکت‌های TLS برای عبور از سد همراه اول و ایرانسل', 'stealth_fragment', true),
-        _sw(Icons.access_time_filled_rounded, const Color(0xFF29E07F), 'همگام‌سازی خودکار منطقه زمانی ویندوز (Auto-Timezone)', 'تنظیم خودکار ساعت ویندوز با لوکیشن سرور برای دور زدن فیلترهای ضد تقلب آمازون و جمینای', 'auto_timezone_sync', true),
         Tile(
           icon: Icons.alt_route_rounded,
           iconColor: const Color(0xFF33B5FF),
+          title: 'حالت مسیریابی (Routing Rules)',
+          subtitle: Store.routingMode == 'bypass_lan_iran'
+              ? 'دور زدن ایران و شبکه داخلی (Bypass LAN & Iran)'
+              : 'هدایت تمام ترافیک از سرور (Global)',
+          trailing: const Chevron(),
+          onTap: () => _chooseRoutingMode(context),
+        ),
+        _sw(Icons.block_rounded, Colors.orangeAccent, 'مسدودسازی هوشمند تبلیغات (Block Ads)', 'مسدودسازی دامنه‌های تبلیغاتی و ترکرهای مزاحم اینترنتی', 'block_ads', true),
+        _sw(Icons.power_settings_new_rounded, Colors.redAccent, 'سوئیچ قطع اضطراری (Kill Switch)', 'قطع اینترنت در صورت قطع اتصال وی‌پی‌ان برای حفظ امنیت آی‌پی', 'kill_switch', false),
+        _sw(Icons.security_rounded, Colors.amberAccent, 'حالت ضد فیلترینگ شدید (Stealth Fragment)', 'تکه‌تکه کردن پکت‌های TLS برای عبور از سد همراه اول و ایرانسل', 'stealth_fragment', true),
+        _sw(Icons.access_time_filled_rounded, const Color(0xFF29E07F), 'همگام‌سازی خودکار منطقه زمانی (Auto-Timezone)', 'تنظیم خودکار ساعت سیستم با لوکیشن سرور برای جلوگیری از نشت زمان', 'auto_timezone_sync', true),
+        Tile(
+          icon: Icons.swap_calls_rounded,
+          iconColor: const Color(0xFF00C6FF),
           title: 'پروکسی زنجیره‌ای مسکونی (Residential Upstream)',
           subtitle: Store.upstreamProxyEnabled && Store.upstreamProxy.isNotEmpty
               ? 'فعال: ${Store.upstreamProxy}'
-              : 'اتصال خروجی به آی‌پی خانگی/تمیز برای ثبت‌نام آمازون و پی‌پال',
+              : 'اتصال خروجی به آی‌پی خانگی/تمیز برای سرویس‌های حساس و حفظ حریم خصوصی',
           trailing: const Chevron(),
           onTap: () => _editUpstreamProxy(context),
         ),

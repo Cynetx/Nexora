@@ -304,15 +304,15 @@ class _FirefoxPageState extends State<FirefoxPage> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF9900), Color(0xFFFF5500)],
+                        colors: [Color(0xFF0072FF), Color(0xFF00C6FF)],
                       ),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 22),
+                    child: const Icon(Icons.shield_rounded, color: Colors.white, size: 22),
                   ),
                   title: Row(
                     children: [
-                      const Text('دستیار ثبت‌نام ۱۰۰ دلار آمازون', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      const Text('سپر امنیت و مرورگر ایزوله', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -320,13 +320,13 @@ class _FirefoxPageState extends State<FirefoxPage> {
                           color: const Color(0xFF10B981),
                           borderRadius: BorderRadius.circular(5),
                         ),
-                        child: const Text('بدون کارت', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
+                        child: const Text('ضد نشت', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
-                  subtitle: const Text('آدرس معتبر آمریکا + تنظیم ساعت ویندوز + مرورگر امن', style: TextStyle(fontSize: 11.5)),
+                  subtitle: const Text('مسدودسازی نشت WebRTC + هماهنگی ساعت + مرورگر امن', style: TextStyle(fontSize: 11.5)),
                   trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                  onTap: () => showAwsAssistantSheet(context),
+                  onTap: () => showSecurityShieldSheet(context),
                 ),
               ),
               const SizedBox(height: 10),

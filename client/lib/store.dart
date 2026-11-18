@@ -221,8 +221,70 @@ class Store {
   static bool get autoTimezoneSync => _p.getBool('auto_timezone_sync') ?? true;
   static Future<void> setAutoTimezoneSync(bool v) => _p.setBool('auto_timezone_sync', v);
 
+  /// حالت‌های مسیریابی: 'bypass_lan_iran' (دور زدن ایران و شبکه داخلی) یا 'global' (پروکسی کل ترافیک)
+  static String get routingMode => _p.getString('routing_mode') ?? 'bypass_lan_iran';
+  static Future<void> setRoutingMode(String v) => _p.setString('routing_mode', v);
+
+  /// مسدودسازی تبلیغات و دامنه‌های ترکر
+  static bool get blockAds => _p.getBool('block_ads') ?? true;
+  static Future<void> setBlockAds(bool v) => _p.setBool('block_ads', v);
+
+  /// سوئیچ قطع اضطراری اینترنت (Kill Switch) در صورت قطعی اتصال وی‌پی‌ان
+  static bool get killSwitch => _p.getBool('kill_switch') ?? false;
+  static Future<void> setKillSwitch(bool v) => _p.setBool('kill_switch', v);
+
+  /// مدیریت سابسکریپشن‌های کاربر (URLs)
+  static List<Map<String, dynamic>> get subscriptions {
+    try {
+      final raw = _p.getString('subscriptions');
+      if (raw != null) {
+        return (jsonDecode(raw) as List).map((e) => (e as Map).cast<String, dynamic>()).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<void> setSubscriptions(List<Map<String, dynamic>> subs) =>
+      _p.setString('subscriptions', jsonEncode(subs));
+
+  static Future<void> addSubscription(String name, String url, {int count = 0}) async {
+    final cur = List<Map<String, dynamic>>.from(subscriptions);
+    final id = 'sub-${DateTime.now().millisecondsSinceEpoch}';
+    cur.add({
+      'id': id,
+      'name': name.trim().isNotEmpty ? name.trim() : 'سابسکریپشن ${cur.length + 1}',
+      'url': url.trim(),
+      'count': count,
+      'updatedAt': DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' '),
+    });
+    await setSubscriptions(cur);
+  }
+
+  static Future<void> removeSubscription(String id) async {
+    final cur = List<Map<String, dynamic>>.from(subscriptions);
+    cur.removeWhere((e) => '${e['id']}' == id);
+    await setSubscriptions(cur);
+  }
+
   static Future<void> resetSettings() async {
-    for (final k in ['autoConnect', 'notif', 'battery', 'system', 'advNotif', 'serverId', 'theme', 'lite2', 'lite3', 'stealth_fragment', 'upstream_proxy', 'upstream_proxy_on', 'auto_timezone_sync']) {
+    for (final k in [
+      'autoConnect',
+      'notif',
+      'battery',
+      'system',
+      'advNotif',
+      'serverId',
+      'theme',
+      'lite2',
+      'lite3',
+      'stealth_fragment',
+      'upstream_proxy',
+      'upstream_proxy_on',
+      'auto_timezone_sync',
+      'routing_mode',
+      'block_ads',
+      'kill_switch',
+    ]) {
       await _p.remove(k);
     }
     themeMode.value = ThemeMode.dark;

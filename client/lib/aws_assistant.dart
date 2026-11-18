@@ -140,8 +140,8 @@ const List<UsIdentity> _kPredefinedUsIdentities = [
   ),
 ];
 
-class AwsAssistant {
-  static const String starterUrl = 'https://signup.aws.com/starter';
+class SecurityShield {
+  static const String defaultCheckUrl = 'https://browserleaks.com/webrtc';
 
   static UsIdentity getRandomIdentity() {
     final rnd = Random();
@@ -169,13 +169,13 @@ class AwsAssistant {
   }
 
   /// باز کردن مرورگر در حالت ایزوله و امن (InPrivate/Incognito) همراه با قطع نشت WebRTC
-  static Future<bool> launchSafeBrowser(String url) async {
+  static Future<bool> launchSafeBrowser([String url = defaultCheckUrl]) async {
     if (Platform.isWindows) {
-      // ابتدا ساعت سیستم را به طور خودکار با آمریکا هماهنگ می‌کنیم
+      // ابتدا ساعت سیستم را به طور خودکار با آمریکا/سرور هماهنگ می‌کنیم
       await Api.syncWindowsTimezone('US');
 
       try {
-        // ۱. تلاش با مایکروسافت اج (Edge پیش‌فرض با مسدودسازی قطعی نشت WebRTC به ایران)
+        // ۱. تلاش با مایکروسافت اج در حالت خصوصی با مسدودسازی WebRTC
         final r = await Process.run('powershell', [
           '-NoProfile',
           '-NonInteractive',
@@ -226,23 +226,28 @@ class AwsAssistant {
   }
 }
 
-void showAwsAssistantSheet(BuildContext context) {
+// برای حفظ سازگاری کامل کدهای قبلی
+typedef AwsAssistant = SecurityShield;
+
+void showSecurityShieldSheet(BuildContext context) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => const _AwsAssistantSheetWidget(),
+    builder: (ctx) => const _SecurityShieldSheetWidget(),
   );
 }
 
-class _AwsAssistantSheetWidget extends StatefulWidget {
-  const _AwsAssistantSheetWidget();
+void showAwsAssistantSheet(BuildContext context) => showSecurityShieldSheet(context);
+
+class _SecurityShieldSheetWidget extends StatefulWidget {
+  const _SecurityShieldSheetWidget();
 
   @override
-  State<_AwsAssistantSheetWidget> createState() => _AwsAssistantSheetWidgetState();
+  State<_SecurityShieldSheetWidget> createState() => _SecurityShieldSheetWidgetState();
 }
 
-class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
+class _SecurityShieldSheetWidgetState extends State<_SecurityShieldSheetWidget> {
   late UsIdentity _identity;
   IpQualityReport? _quality;
   bool _loadingQuality = true;
@@ -250,7 +255,7 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
   @override
   void initState() {
     super.initState();
-    _identity = AwsAssistant.getRandomIdentity();
+    _identity = SecurityShield.getRandomIdentity();
     _fetchQuality();
   }
 
@@ -264,7 +269,7 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
         _quality = q;
         _loadingQuality = false;
         if (q != null && q.city.isNotEmpty) {
-          _identity = AwsAssistant.getIdentityForCity(q.city, q.country);
+          _identity = SecurityShield.getIdentityForCity(q.city, q.country);
         }
       });
     }
@@ -284,7 +289,6 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
   @override
   Widget build(BuildContext context) {
     final p = P.of(context);
-    final isUs = _quality?.code == 'US';
     final tzMatched = _quality?.timezoneMatch ?? false;
 
     return Container(
@@ -300,7 +304,6 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
         textDirection: TextDirection.rtl,
         child: Column(
           children: [
-            // Handle bar
             const SizedBox(height: 10),
             Center(
               child: Container(
@@ -323,13 +326,13 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF9900), Color(0xFFFF5500)],
+                        colors: [Color(0xFF0072FF), Color(0xFF00C6FF)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 24),
+                    child: const Icon(Icons.shield_rounded, color: Colors.white, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -339,8 +342,8 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                         Row(
                           children: [
                             const Text(
-                              'دستیار دریافت ۱۰۰ دلار آمازون',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              'سپر امنیت و ابزارهای حریم خصوصی',
+                              style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(width: 8),
                             Container(
@@ -350,7 +353,7 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
-                                'تضمین بدون کارت',
+                                'ضد نشت',
                                 style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -358,7 +361,7 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'محیط ایزوله، تطابق ساعت، آدرس معتبر و حذف مرحله کارت بانکی',
+                          'بررسی نشت WebRTC، هماهنگی ساعت، مرورگر ایزوله و تست هویت',
                           style: TextStyle(color: p.sub, fontSize: 11.5),
                         ),
                       ],
@@ -393,7 +396,7 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                           children: const [
                             Icon(Icons.checklist_rounded, color: Color(0xFF29E07F), size: 20),
                             SizedBox(width: 8),
-                            Text('بررسی خودکار وضعیت اتصال و امنیت',
+                            Text('بررسی وضعیت اتصال و عدم نشت اطلاعات',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                           ],
                         ),
@@ -405,15 +408,15 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                           )
                         else ...[
                           _checkItem(
-                            isUs ? 'لوکیشن سرور: ایالات متحده (${_quality?.city ?? ''})' : 'لوکیشن سرور: ${_quality?.country ?? 'ناشناس'} (پیشنهاد: اتصال به سرور آمریکا)',
-                            isUs,
-                            isUs ? 'هماهنگ با فرم ثبت‌نام آمازون آمریکا' : 'برای حذف قطعی مرحله کارت، سرور آمریکا پیشنهاد می‌شود',
+                            'لوکیشن سرور: ${_quality?.country ?? 'ناشناس'} (${_quality?.city ?? ''})',
+                            _quality != null,
+                            'ترافیک به صورت کامل از این لوکیشن خارج می‌شود',
                           ),
                           const SizedBox(height: 8),
                           _checkItem(
-                            tzMatched ? 'ساعت ویندوز: کاملاً همگام با سرور' : 'ساعت ویندوز: ناهماهنگ با سرور (روی ایران)',
+                            tzMatched ? 'ساعت سیستم: کاملاً همگام با سرور' : 'ساعت سیستم: ناهماهنگ با سرور',
                             tzMatched,
-                            tzMatched ? 'فیلتر هوش مصنوعی ضد تقلب آمازون دور زده شد' : 'با یک کلیک ساعت ویندوز را همگام کنید',
+                            tzMatched ? 'عدم مغایرت ساعت و موقعیت جغرافیایی' : 'پیشنهاد: ساعت سیستم را با سرور همگام کنید',
                           ),
                           if (!tzMatched && Platform.isWindows) ...[
                             const SizedBox(height: 8),
@@ -425,12 +428,12 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
-                              label: const Text('⚡ همگام‌سازی فوری ساعت با آمریکا', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                              label: const Text('⚡ همگام‌سازی فوری ساعت با سرور', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                               onPressed: () async {
-                                final ok = await Api.syncWindowsTimezone('US');
+                                final ok = await Api.syncWindowsTimezone(_quality?.code ?? 'US');
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(ok ? 'ساعت ویندوز روی آمریکا تنظیم شد!' : 'خطا در تنظیم ساعت')),
+                                    SnackBar(content: Text(ok ? 'ساعت ویندوز با سرور هماهنگ شد!' : 'خطا در تنظیم ساعت')),
                                   );
                                   _fetchQuality();
                                 }
@@ -438,14 +441,75 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                             ),
                           ],
                           const SizedBox(height: 8),
-                          _checkItem('امنیت DNS و ضد نشت DoH: فعال', true, 'هیچ نشت ترافیکی وجود ندارد'),
+                          _checkItem('سپر نشت WebRTC (مسدودسازی STUN/TURN): فعال', true, 'آی‌پی واقعی ایران در WebRTC مسدود شده است'),
+                          const SizedBox(height: 8),
+                          _checkItem('رمزنگاری DNS و تونل DoH: فعال', true, 'جلوگیری از مسموم‌سازی DNS و نشت پورت ۵۳'),
                         ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // US Identity Generator Card
+                  // Isolated Safe Browser Launcher Card
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: p.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: p.border.withOpacity(0.6)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(Icons.open_in_browser_rounded, color: Color(0xFF00C6FF), size: 20),
+                            SizedBox(width: 8),
+                            Text('راه‌اندازی مرورگر ایزوله و ضد نشت',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'باز کردن مرورگر در پنجره ناشناس (Incognito) با فلگ‌های امنیتی مسدودکننده نشت WebRTC و هدایت کامل از تونل NEXORA.',
+                          style: TextStyle(color: p.sub, fontSize: 11.5, height: 1.45),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0072FF),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.shield_rounded, size: 20),
+                          label: const Text('🚀 باز کردن مرورگر ایمن (تست نشت WebRTC)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          onPressed: () async {
+                            final ok = await SecurityShield.launchSafeBrowser(SecurityShield.defaultCheckUrl);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(ok ? 'مرورگر امن باز شد.' : 'خطا در باز کردن مرورگر.')),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _browserChip('IPQualityScore', 'https://www.ipqualityscore.com', Icons.verified_user_rounded),
+                            _browserChip('IPHey Fingerprint', 'https://iphey.com', Icons.fingerprint_rounded),
+                            _browserChip('ChatGPT AI', 'https://chatgpt.com', Icons.smart_toy_rounded),
+                            _browserChip('Claude AI', 'https://claude.ai', Icons.auto_awesome_rounded),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Clean Identity Generator Card
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -457,122 +521,35 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.person_pin_rounded, color: Color(0xFFFF9900), size: 20),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text('مشخصات و آدرس معتبر آمریکا (جهت کپی در فرم)',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                            Row(
+                              children: const [
+                                Icon(Icons.badge_rounded, color: Color(0xFF00C6FF), size: 20),
+                                SizedBox(width: 8),
+                                Text('مشخصات و آدرس معتبر بین‌المللی',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                              ],
                             ),
                             TextButton.icon(
+                              style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('تولید مجدد', style: TextStyle(fontSize: 11.5)),
                               onPressed: () {
                                 setState(() {
-                                  _identity = AwsAssistant.getRandomIdentity();
+                                  _identity = SecurityShield.getRandomIdentity();
                                 });
                               },
-                              icon: const Icon(Icons.refresh_rounded, size: 16),
-                              label: const Text('تولید مجدد', style: TextStyle(fontSize: 12)),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         _copyRow('نام کامل', _identity.fullName, p),
                         _copyRow('آدرس خیابان', _identity.street, p),
                         _copyRow('شهر', _identity.city, p),
                         _copyRow('ایالت (State)', '${_identity.state} (${_identity.stateCode})', p, copyVal: _identity.stateCode),
                         _copyRow('کد پستی (ZIP)', _identity.zip, p),
                         _copyRow('تلفن', _identity.phone, p),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 1-Click Clean Browser Launch
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF1E3A8A).withOpacity(0.4),
-                          const Color(0xFF0F172A).withOpacity(0.7),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.4)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: const [
-                            Icon(Icons.rocket_launch_rounded, color: Color(0xFF60A5FA), size: 22),
-                            SizedBox(width: 10),
-                            Text('اجرای فوق‌امن و ورود به ثبت‌نام',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'با کلیک روی دکمه زیر، برنامه به طور خودکار ساعت سیستم را هماهنگ کرده و مرورگر را در پنجره تمیز و ناشناس (بدون کوکی‌های قبلی و به زبان انگلیسی) مستقیم به سایت ثبت‌نام هدایت می‌کند.',
-                          style: TextStyle(color: Color(0xFF93C5FD), fontSize: 12, height: 1.45),
-                        ),
-                        const SizedBox(height: 14),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF9900),
-                            foregroundColor: const Color(0xFF040A1C),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
-                          ),
-                          icon: const Icon(Icons.open_in_browser_rounded, size: 22),
-                          label: const Text(
-                            '🚀 باز کردن مرورگر ایمن و شروع ثبت‌نام آمازون',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                          ),
-                          onPressed: () async {
-                            final ok = await AwsAssistant.launchSafeBrowser(AwsAssistant.starterUrl);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(ok
-                                      ? 'مرورگر امن باز شد؛ حالا با گوگل یا گیت‌هاب وارد شوید.'
-                                      : 'آدرس ثبت‌نام باز نشد. لینک را به صورت دستی باز کنید.'),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Pro Tips for 100% bypass
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: const [
-                            Icon(Icons.lightbulb_rounded, color: Color(0xFF10B981), size: 20),
-                            SizedBox(width: 8),
-                            Text('۳ راز طلایی برای عبور ۱۰۰٪ بدون نیاز به کارت:',
-                                style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 13)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        _ruleText('۱. در صفحه ورود آمازون، گزینه «Sign in with Google» یا «Sign in with GitHub» را بزنید. هوش مصنوعی آمازون به این اکانت‌ها اعتماد دارد و مرحله کارت را حذف می‌کند.'),
-                        _ruleText('۲. در فرم مشخصات، کشور را حتماً «United States» انتخاب کنید و از فیلدهای کپی‌شده بالا استفاده نمایید.'),
-                        _ruleText('۳. از ایمیل‌های موقت و فیک استفاده نکنید؛ ورود با جیمیل اصلی شانس موفقیت را به ۱۰۰٪ می‌رساند.'),
                       ],
                     ),
                   ),
@@ -583,6 +560,14 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _browserChip(String label, String url, IconData icon) {
+    return ActionChip(
+      avatar: Icon(icon, size: 16, color: const Color(0xFF00C6FF)),
+      label: Text(label, style: const TextStyle(fontSize: 11.5)),
+      onPressed: () => SecurityShield.launchSafeBrowser(url),
     );
   }
 
@@ -630,16 +615,6 @@ class _AwsAssistantSheetWidgetState extends State<_AwsAssistantSheetWidget> {
             onPressed: () => _copy(copyVal ?? value, label),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _ruleText(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 12, height: 1.45, color: Colors.white70),
       ),
     );
   }

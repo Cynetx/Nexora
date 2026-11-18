@@ -279,6 +279,35 @@ LinkInfo parseLink(String link) {
         name: frag,
       );
     }
+    if (scheme == 'socks' || scheme == 'socks5') {
+      String? user, pass;
+      if (u.userInfo.isNotEmpty) {
+        final parts = u.userInfo.split(':');
+        user = _dec(parts[0]);
+        if (parts.length > 1) pass = _dec(parts[1]);
+      }
+      return LinkInfo(
+        'socks',
+        'tcp',
+        {
+          'tag': 'proxy',
+          'protocol': 'socks',
+          'settings': {
+            'servers': [
+              {
+                'address': u.host,
+                'port': u.port > 0 ? u.port : 1080,
+                if (user != null && user.isNotEmpty)
+                  'users': [
+                    {'user': user, if (pass != null) 'pass': pass}
+                  ]
+              }
+            ]
+          }
+        },
+        name: frag,
+      );
+    }
   } catch (_) {}
   return LinkInfo(scheme, '', null);
 }
@@ -365,9 +394,6 @@ Map<String, dynamic> mobileBaseConfig() {
             'domain:claude.ai',
             'domain:openai.com',
             'domain:chatgpt.com',
-            'domain:amazon.com',
-            'domain:amazonaws.com',
-            'domain:aws.amazon.com',
             'domain:cloudflare.com',
           ],
           'outboundTag': 'proxy',
@@ -468,6 +494,8 @@ Map<String, dynamic>? buildXrayConfig(
   List<String> dns = const [],
   bool enableFragment = true,
   String? upstreamProxy,
+  String routingMode = 'bypass_lan_iran',
+  bool blockAds = true,
 }) {
   final info = parseLink(link);
   if (info.outbound == null) return null;
@@ -588,6 +616,25 @@ Map<String, dynamic>? buildXrayConfig(
           ],
           'outboundTag': 'block',
         },
+        if (blockAds)
+          {
+            'type': 'field',
+            'domain': ['geosite:category-ads-all'],
+            'outboundTag': 'block',
+          },
+        // دور زدن سایت‌های ایرانی و شبکه داخلی (Bypass LAN & Iran)
+        if (routingMode == 'bypass_lan_iran')
+          {
+            'type': 'field',
+            'ip': ['geoip:private', 'geoip:ir'],
+            'outboundTag': 'direct',
+          },
+        if (routingMode == 'bypass_lan_iran')
+          {
+            'type': 'field',
+            'domain': ['geosite:ir', 'regexp:.*\\.ir\$'],
+            'outboundTag': 'direct',
+          },
         // سرویس‌های فوق حساس: تضمین عبور بدون نشت دامنه‌های هوش مصنوعی و کلاد از پروکسی
         {
           'type': 'field',
@@ -603,9 +650,6 @@ Map<String, dynamic>? buildXrayConfig(
             'domain:claude.ai',
             'domain:openai.com',
             'domain:chatgpt.com',
-            'domain:amazon.com',
-            'domain:amazonaws.com',
-            'domain:aws.amazon.com',
             'domain:cloudflare.com',
           ],
           'outboundTag': primaryTag,
