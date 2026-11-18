@@ -981,30 +981,32 @@ class _HomePageState extends State<HomePage> {
             children: [
               SizedBox(
                 height: wide ? 190 : 175,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned.fill(
-                      child: RepaintBoundary(
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: Store.lite,
-                          builder: (context, lite, _) => CustomPaint(
-                            isComplex: true,
-                            willChange: false,
-                            painter: GlobePainter(p.accent2, on, lite, busy: busy),
+                child: ClipRect(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned.fill(
+                        child: RepaintBoundary(
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: Store.lite,
+                            builder: (context, lite, _) => CustomPaint(
+                              isComplex: true,
+                              willChange: false,
+                              painter: GlobePainter(p.accent2, on, lite, busy: busy),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    if (on && kFancy)
-                      Positioned.fill(
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: Store.lite,
-                          builder: (_, lite, __) => lite ? const SizedBox.shrink() : const PulseRings(color: Color(0xFF29E07F)),
+                      if (on && kFancy)
+                        Positioned.fill(
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: Store.lite,
+                            builder: (_, lite, __) => lite ? const SizedBox.shrink() : const PulseRings(color: Color(0xFF29E07F)),
+                          ),
                         ),
-                      ),
-                    MasterPowerButton(on: on, busy: busy, onChanged: _toggle),
-                  ],
+                      MasterPowerButton(on: on, busy: busy, onChanged: _toggle),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 14),

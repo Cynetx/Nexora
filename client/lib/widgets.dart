@@ -100,7 +100,12 @@ class _PanelState extends State<Panel> {
         border: Border.all(color: (fancy && _hover ? p.accent2 : p.border).withOpacity(fancy && _hover ? 0.9 : (dark ? 0.55 : 0.8)), width: 1),
         boxShadow: fancy && _hover ? [BoxShadow(color: p.accent2.withOpacity(0.28), blurRadius: 20)] : null,
       ),
-      child: fancy ? ClipRRect(borderRadius: r, child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), child: inner)) : inner,
+      child: ClipRRect(
+        borderRadius: r,
+        child: fancy
+            ? BackdropFilter(filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), child: inner)
+            : inner,
+      ),
     );
     if (!fancy) return box;
     return MouseRegion(
@@ -356,8 +361,8 @@ class GlobePainter extends CustomPainter {
         ? const Color(0xFF29E07F)
         : (busy ? Colors.amber : c);
 
-    // ۱. هاله نورانی و امبینت نرم در مرکز دقیق پشت دکمه
-    final maxR = (size.width < size.height ? size.width : size.height) * 0.48;
+    // ۱. هاله نورانی و امبینت نرم - کاملاً محصور در داخل کادر کارت
+    final maxRadius = (size.height / 2 - 10.0).clamp(72.0, 84.0);
     final radialPaint = Paint()
       ..shader = RadialGradient(
         center: Alignment.center,
@@ -368,46 +373,37 @@ class GlobePainter extends CustomPainter {
           Colors.transparent,
         ],
         stops: const [0.0, 0.55, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: maxR));
+      ).createShader(Rect.fromCircle(center: center, radius: maxRadius));
 
-    canvas.drawCircle(center, maxR, radialPaint);
+    canvas.drawCircle(center, maxRadius, radialPaint);
 
-    // ۲. حلقه‌های متمرکز سایبرپانک و متقارن
-    final r1 = 68.0; // دور دکمه
-    final r2 = 96.0; // حلقه میانی
-    final r3 = 126.0; // حلقه بیرونی
+    // ۲. حلقه‌های متمرکز سایبرپانک و متقارن - با دقت در محدوده کادر
+    final r1 = 68.0; // دور دکمه (شعاع دکمه ۶۲ است)
+    final r2 = maxRadius; // حلقه بیرونی رادار (کاملاً درون کادر کارت)
 
     final ringPaint1 = Paint()
       ..color = glow.withOpacity(on ? 0.35 : 0.18)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
+      ..strokeWidth = 1.3;
 
     final ringPaint2 = Paint()
-      ..color = glow.withOpacity(on ? 0.20 : 0.10)
+      ..color = glow.withOpacity(on ? 0.22 : 0.12)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
-    final ringPaint3 = Paint()
-      ..color = glow.withOpacity(on ? 0.12 : 0.05)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-
     canvas.drawCircle(center, r1, ringPaint1);
     canvas.drawCircle(center, r2, ringPaint2);
-    if (size.height >= 190) {
-      canvas.drawCircle(center, r3, ringPaint3);
-    }
 
-    // ۳. نشانگرهای رادار و تیک‌های تکنولوژی در ۴ جهت
+    // ۳. نشانگرهای رادار و تیک‌های تکنولوژی در ۴ جهت اصلی روی حلقه بیرونی
     final tickPaint = Paint()
       ..color = glow.withOpacity(on ? 0.45 : 0.25)
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.4;
 
     for (var angle in [0.0, pi / 2, pi, 3 * pi / 2]) {
-      final dx1 = center.dx + (r2 - 6) * cos(angle);
-      final dy1 = center.dy + (r2 - 6) * sin(angle);
-      final dx2 = center.dx + (r2 + 6) * cos(angle);
-      final dy2 = center.dy + (r2 + 6) * sin(angle);
+      final dx1 = center.dx + (r2 - 4) * cos(angle);
+      final dy1 = center.dy + (r2 - 4) * sin(angle);
+      final dx2 = center.dx + (r2 + 4) * cos(angle);
+      final dy2 = center.dy + (r2 + 4) * sin(angle);
       canvas.drawLine(Offset(dx1, dy1), Offset(dx2, dy2), tickPaint);
     }
 
@@ -1000,15 +996,17 @@ class _RingsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final ctr = size.center(Offset.zero);
+    final maxR = (size.height / 2 - 8.0).clamp(70.0, 86.0);
+    const minR = 64.0;
     for (var i = 0; i < 3; i++) {
       final k = (t + i / 3) % 1.0;
       canvas.drawCircle(
         ctr,
-        46 + k * 120,
+        minR + k * (maxR - minR),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.2 * (1 - k) + 0.4
-          ..color = c.withOpacity(0.5 * (1 - k)),
+          ..strokeWidth = 2.0 * (1 - k) + 0.4
+          ..color = c.withOpacity(0.40 * (1 - k)),
       );
     }
   }
