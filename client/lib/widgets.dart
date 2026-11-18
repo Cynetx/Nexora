@@ -435,24 +435,26 @@ class _SlideSwitchState extends State<SlideSwitch> {
     return RepaintBoundary(
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.busy ? null : () => widget.onChanged(!on),
-          onHorizontalDragStart: (_) {
-            _dragging = true;
-            _drag.value = target;
-          },
-          onHorizontalDragUpdate: (d) => _drag.value = (_drag.value + d.delta.dx).clamp(0.0, maxX),
-          onHorizontalDragEnd: (_) {
-            final wantOn = _drag.value < maxX / 2;
-            setState(() => _dragging = false);
-            if (!widget.busy && wantOn != on) widget.onChanged(wantOn);
-          },
-          onHorizontalDragCancel: () => setState(() => _dragging = false),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            width: w,
-            height: h,
+        child: MouseRegion(
+          cursor: widget.busy ? SystemMouseCursors.basic : SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.busy ? null : () => widget.onChanged(!on),
+            onHorizontalDragStart: (_) {
+              _dragging = true;
+              _drag.value = target;
+            },
+            onHorizontalDragUpdate: (d) => _drag.value = (_drag.value + d.delta.dx).clamp(0.0, maxX),
+            onHorizontalDragEnd: (_) {
+              final wantOn = _drag.value < maxX / 2;
+              setState(() => _dragging = false);
+              if (!widget.busy && wantOn != on) widget.onChanged(wantOn);
+            },
+            onHorizontalDragCancel: () => setState(() => _dragging = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: w,
+              height: h,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(h / 2),
               gradient: LinearGradient(
@@ -505,7 +507,8 @@ class _SlideSwitchState extends State<SlideSwitch> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

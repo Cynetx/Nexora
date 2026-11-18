@@ -417,6 +417,11 @@ class _HomePageState extends State<HomePage> {
   Future<void> _toggle(bool on) async {
     final v = VpnService.I;
     if (on) {
+      if (Store.config.value == null || Store.configs.value.isEmpty) {
+        snack(context, 'ابتدا یک کانفیگ یا لینک سابسکریپشن اضافه کنید');
+        _openLocations(0);
+        return;
+      }
       // A device can keep only one full-device VPN tunnel active at once.
       // Refresh the independent core first so a Firefox tunnel that survived
       // an app restart is detected too, rather than relying on this process's
@@ -493,99 +498,257 @@ class _HomePageState extends State<HomePage> {
         final server = ValueListenableBuilder<Map<String, dynamic>?>(
           valueListenable: Store.config,
           builder: (context, cfg, _) {
-            final has = cfg != null;
-            final name = has ? cfgTitle(cfg) : 'کانفیگ ۱۰ گیگ';
-            final exp = has && '${cfg['expires']}'.isNotEmpty ? 'Valid Until: ${cfg['expires']}' : 'Valid Until: —';
-            return Column(children: [
-              Panel(
-                onTap: () => _openLocations(1),
+            final has = cfg != null && Store.configs.value.isNotEmpty;
+            if (!has) {
+              return Panel(
+                onTap: () => _openLocations(0),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Row(children: [
-                    Icon(Icons.storage_rounded, color: p.accent2, size: 42),
+                  textDirection: TextDirection.rtl,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0072FF), Color(0xFF00C6FF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(color: const Color(0xFF0072FF).withOpacity(0.3), blurRadius: 8),
+                          ],
+                        ),
+                        child: const Icon(Icons.add_link_rounded, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'افزودن لینک سابسکریپشن یا کانفیگ',
+                              style: TextStyle(color: p.text, fontSize: 14.5, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'هنوز سروری اضافه نکرده‌اید (برای دریافت سرورها لمس کنید)',
+                              style: TextStyle(color: p.sub, fontSize: 11.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: p.accent.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: p.accent.withOpacity(0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_rounded, color: p.accent2, size: 16),
+                            const SizedBox(width: 4),
+                            Text('افزودن', style: TextStyle(color: p.accent2, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final name = cfgTitle(cfg);
+            final proto = '${cfg['protocol'] ?? 'PROXY'}'.toUpperCase();
+            final tr = '${cfg['transport'] ?? ''}'.toUpperCase();
+            final subTag = '${cfg['subTag'] ?? ''}';
+            final exp = '${cfg['expires']}'.isNotEmpty
+                ? 'اعتبار: ${cfg['expires']}'
+                : (subTag.isNotEmpty ? subTag : (tr.isNotEmpty ? tr : 'آماده اتصال'));
+
+            return Panel(
+              onTap: () => _openLocations(0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: p.accent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: p.border.withOpacity(0.3)),
+                      ),
+                      child: Icon(Icons.dns_rounded, color: p.accent2, size: 24),
+                    ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                          Flexible(child: Text(name, textDirection: TextDirection.rtl, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.w700))),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: has ? const Color(0xFF29E07F) : Colors.grey,
-                              shape: BoxShape.circle,
-                            ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: p.text, fontSize: 15, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: p.accent.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(proto, style: TextStyle(color: p.accent2, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
                           ),
-                        ]),
-                        const SizedBox(height: 5),
-                        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                          Text(exp, style: TextStyle(color: p.sub, fontSize: 13)),
-                          const SizedBox(width: 8),
-                          Container(width: 10, height: 10, decoration: BoxDecoration(color: p.sub.withOpacity(0.6), shape: BoxShape.circle)),
-                        ]),
-                      ]),
+                          const SizedBox(height: 4),
+                          Text(exp, style: TextStyle(color: p.sub, fontSize: 12)),
+                        ],
+                      ),
                     ),
-                  ]),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: on ? const Color(0xFF29E07F) : p.sub.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                            boxShadow: on ? [const BoxShadow(color: Color(0xFF29E07F), blurRadius: 6)] : null,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(Icons.arrow_forward_ios_rounded, color: p.sub.withOpacity(0.5), size: 13),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              if (!has)
-                _loading
-                    ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator())
-                    : AlertMessage(text: 'هنوز کانفیگ ۱۰ گیگ را دریافت نکرده‌ای! (لمس کن)', onTap: _refetch),
-            ]);
+            );
           },
         );
 
-        final connect = SizedBox(
-          height: wide ? 330 : 250,
-          child: Stack(alignment: Alignment.center, children: [
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: ValueListenableBuilder<bool>(
-                    valueListenable: Store.lite,
-                    builder: (context, lite, _) => CustomPaint(isComplex: true, willChange: false, painter: GlobePainter(p.accent2, on, lite)),
+        final connectHero = Panel(
+          padding: EdgeInsets.symmetric(vertical: wide ? 28 : 22, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: wide ? 260 : 210,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned.fill(
+                      child: RepaintBoundary(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: Store.lite,
+                            builder: (context, lite, _) => CustomPaint(
+                              isComplex: true,
+                              willChange: false,
+                              painter: GlobePainter(p.accent2, on, lite),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (on && kFancy)
+                      Positioned.fill(
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: Store.lite,
+                          builder: (_, lite, __) => lite ? const SizedBox.shrink() : const PulseRings(color: Color(0xFF29E07F)),
+                        ),
+                      ),
+                    SlideSwitch(on: on, busy: busy, onChanged: _toggle),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // بج وضعیت اتصال شیک و یکپارچه
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: busy ? null : () => _toggle(!on),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: on
+                          ? const Color(0xFF29E07F).withOpacity(0.12)
+                          : busy
+                              ? Colors.amber.withOpacity(0.12)
+                              : p.accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: on
+                            ? const Color(0xFF29E07F).withOpacity(0.4)
+                            : busy
+                                ? Colors.amber.withOpacity(0.4)
+                                : p.border.withOpacity(0.35),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (busy)
+                          const SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                          )
+                        else
+                          Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: on ? const Color(0xFF29E07F) : p.sub.withOpacity(0.7),
+                              shape: BoxShape.circle,
+                              boxShadow: on
+                                  ? [const BoxShadow(color: Color(0xFF29E07F), blurRadius: 8, spreadRadius: 1)]
+                                  : null,
+                            ),
+                          ),
+                        const SizedBox(width: 9),
+                        Text(
+                          busy
+                              ? 'در حال برقراری اتصال امن...'
+                              : on
+                                  ? 'متصل هستید • رمزنگاری فعال است'
+                                  : 'آماده اتصال (کلیک یا لمس کنید)',
+                          style: TextStyle(
+                            color: on
+                                ? const Color(0xFF29E07F)
+                                : busy
+                                    ? Colors.amber
+                                    : p.text,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (!on && !busy) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.power_settings_new_rounded, color: p.accent2, size: 16),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (on && kFancy)
-              Positioned.fill(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: ValueListenableBuilder<bool>(
-                    valueListenable: Store.lite,
-                    builder: (_, lite, __) => lite ? const SizedBox.shrink() : const PulseRings(color: Color(0xFF29E07F)),
-                  ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: SlideSwitch(on: on, busy: busy, onChanged: _toggle),
-            ),
-          ]),
-        );
-
-        final state = Panel(
-          margin: const EdgeInsets.only(bottom: 4, top: 0),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: Row(children: [
-              Expanded(
-                child: Text(on ? 'متصل هستید' : 'برای اتصال، سوئیچ را به راست بکشید',
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(color: on ? const Color(0xFF29E07F) : p.text, fontSize: 15)),
-              ),
-              if (!on) ...[
-                const SizedBox(width: 8),
-                Icon(Icons.keyboard_double_arrow_left_rounded, color: p.accent2, size: 30),
-              ],
-            ]),
+              const ConnectStages(),
+              note,
+            ],
           ),
         );
 
@@ -708,21 +871,57 @@ class _HomePageState extends State<HomePage> {
             onRefresh: _refetch,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-              padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-              children: [top, brand, const SizedBox(height: 18), server, connect, state, const ConnectStages(), note, const SizedBox(height: 6), qualityButton, securityShieldButton, speeds],
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 16),
+              children: [
+                top,
+                brand,
+                const SizedBox(height: 16),
+                server,
+                const SizedBox(height: 14),
+                connectHero,
+                const SizedBox(height: 12),
+                qualityButton,
+                securityShieldButton,
+                speeds,
+              ],
             ),
           );
         }
         return ListView(
-          padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
+          padding: const EdgeInsets.fromLTRB(32, 20, 32, 24),
           children: [
             brand,
-            const SizedBox(height: 26),
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(flex: 5, child: Column(children: [connect, state, const ConnectStages(), note])),
-              const SizedBox(width: 24),
-              Expanded(flex: 4, child: Column(children: [server, const SizedBox(height: 14), qualityButton, securityShieldButton, speeds])),
-            ]),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    children: [
+                      connectHero,
+                      if (on) ...[
+                        const SizedBox(height: 14),
+                        speeds,
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    children: [
+                      server,
+                      const SizedBox(height: 14),
+                      qualityButton,
+                      securityShieldButton,
+                      if (!on) speeds,
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ],
         );
       },
@@ -768,13 +967,6 @@ class _LocationsPageState extends State<LocationsPage> {
       final v = vs.pingCache['${c['id']}'];
       if (v != null) _ms['${c['id']}'] = v;
     }
-    final target = Store.candidates();
-    final at = vs.pingCacheAt;
-    final fresh = at != null &&
-        DateTime.now().difference(at).inMinutes < 3 &&
-        target.isNotEmpty &&
-        target.every((c) => _ms.containsKey('${c['id']}'));
-    if (!fresh) WidgetsBinding.instance.addPostFrameCallback((_) => _pingAll());
   }
 
   @override
@@ -804,11 +996,14 @@ class _LocationsPageState extends State<LocationsPage> {
     });
   }
 
-  /// پینگ همه کانفیگ‌ها
+  /// پینگ همه کانفیگ‌ها (فقط با کلیک دستی کاربر روی دکمه پینگ)
   Future<void> _pingAll() async {
     if (_pinging) return;
     final list = List<Map<String, dynamic>>.from(Store.candidates());
-    if (list.isEmpty) return;
+    if (list.isEmpty) {
+      snack(context, 'کانفیگی برای تست پینگ موجود نیست؛ ابتدا سابسکریپشن اضافه کنید');
+      return;
+    }
     if (list.length == 1) {
       await _pingOne(list.first);
       return;
@@ -897,7 +1092,6 @@ class _LocationsPageState extends State<LocationsPage> {
     if (mounted) {
       setState(() => _busy = false);
       snack(context, ok ? 'لیست به‌روز شد (${Store.configs.value.length} کانفیگ)' : 'سرور در دسترس نیست؛ لیست ذخیره‌شده استفاده می‌شود');
-      _pingAll();
     }
   }
 
@@ -939,7 +1133,6 @@ class _LocationsPageState extends State<LocationsPage> {
     if (mounted) {
       setState(() {});
       snack(context, '${parsed.length} کانفیگ با موفقیت اضافه شد');
-      _pingAll();
     }
   }
 
@@ -978,39 +1171,45 @@ class _LocationsPageState extends State<LocationsPage> {
 
     if (mounted) {
       setState(() => _busy = false);
-      snack(context, 'سابسکریپشن اضافه شد (${cfgs.length} کانفیگ)');
-      _pingAll();
+      snack(context, 'سابسکریپشن اضافه شد (${cfgs.length} کانفیگ دریافت گردید)');
     }
   }
 
   /// دیالوگ افزودن سابسکریپشن
-  void _addSubscriptionDialog(BuildContext context) {
+  void _addSubscriptionDialog(BuildContext context) async {
     final nameCtl = TextEditingController(text: 'سابسکریپشن ${Store.subscriptions.length + 1}');
     final urlCtl = TextEditingController();
     final p = P.of(context);
+
+    try {
+      final clip = await Clipboard.getData('text/plain');
+      final t = clip?.text?.trim() ?? '';
+      if (t.startsWith('http://') || t.startsWith('https://')) {
+        urlCtl.text = t;
+      }
+    } catch (_) {}
+
+    if (!context.mounted) return;
 
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: p.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('افزودن لینک سابسکریپشن (Subscription)',
-            style: TextStyle(color: p.text, fontSize: 15.5, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Icon(Icons.cloud_download_rounded, color: p.accent2, size: 24),
+            const SizedBox(width: 10),
+            Text('افزودن لینک سابسکریپشن (Sub Link)',
+                style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: nameCtl,
-              style: TextStyle(color: p.text, fontSize: 13),
-              decoration: InputDecoration(
-                labelText: 'نام سابسکریپشن',
-                labelStyle: TextStyle(color: p.sub, fontSize: 12),
-                filled: true,
-                fillColor: p.bg,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
+            Text('لینک سابسکریپشن دریافتی از پنل یا فروشنده را وارد کنید:',
+                style: TextStyle(color: p.sub, fontSize: 12)),
             const SizedBox(height: 12),
             TextField(
               controller: urlCtl,
@@ -1023,16 +1222,33 @@ class _LocationsPageState extends State<LocationsPage> {
                 filled: true,
                 fillColor: p.bg,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                prefixIcon: Icon(Icons.link_rounded, color: p.accent2, size: 20),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: nameCtl,
+              style: TextStyle(color: p.text, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'نام سابسکریپشن (اختیاری)',
+                labelStyle: TextStyle(color: p.sub, fontSize: 12),
+                filled: true,
+                fillColor: p.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                prefixIcon: Icon(Icons.label_outline_rounded, color: p.sub, size: 20),
               ),
             ),
             const SizedBox(height: 8),
-            TextButton.icon(
-              icon: const Icon(Icons.content_paste_rounded, size: 16),
-              label: const Text('جای‌گذاری از کلیپ‌بورد'),
-              onPressed: () async {
-                final d = await Clipboard.getData('text/plain');
-                if (d?.text != null) urlCtl.text = d!.text!.trim();
-              },
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                icon: const Icon(Icons.content_paste_rounded, size: 16),
+                label: const Text('جای‌گذاری از کلیپ‌بورد'),
+                onPressed: () async {
+                  final d = await Clipboard.getData('text/plain');
+                  if (d?.text != null) urlCtl.text = d!.text!.trim();
+                },
+              ),
             ),
           ],
         ),
@@ -1043,11 +1259,14 @@ class _LocationsPageState extends State<LocationsPage> {
             onPressed: () {
               final url = urlCtl.text.trim();
               final name = nameCtl.text.trim();
-              if (url.isEmpty) return;
+              if (url.isEmpty) {
+                snack(context, 'لطفاً لینک سابسکریپشن را وارد کنید');
+                return;
+              }
               Navigator.pop(ctx);
               _fetchAndAddSubscription(name, url);
             },
-            child: const Text('دریافت و ذخیره'),
+            child: const Text('دریافت و ذخیره کانفیگ‌ها'),
           ),
         ],
       ),
@@ -1113,7 +1332,6 @@ class _LocationsPageState extends State<LocationsPage> {
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) setState(() {});
               snack(context, '${parsed.length} کانفیگ اضافه و انتخاب شد');
-              _pingAll();
             },
             child: const Text('افزودن و انتخاب'),
           ),
@@ -1152,7 +1370,6 @@ class _LocationsPageState extends State<LocationsPage> {
     if (mounted) {
       setState(() => _busy = false);
       snack(context, added > 0 ? '$added کانفیگ از سابسکریپشن‌ها به‌روزرسانی شد' : 'سابسکریپشن‌ها بدون تغییر بودند یا پاسخی دریافت نشد');
-      _pingAll();
     }
   }
 
@@ -1288,6 +1505,27 @@ class _LocationsPageState extends State<LocationsPage> {
                     style: TextStyle(color: p.text, fontSize: 18, fontWeight: FontWeight.w800)),
               ),
             ),
+            // دکمه مستقیم افزودن ساب‌لینک
+            GestureDetector(
+              onTap: () => _addSubscriptionDialog(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                decoration: BoxDecoration(
+                  color: p.accent.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: p.accent.withOpacity(0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_link_rounded, color: p.accent2, size: 17),
+                    const SizedBox(width: 5),
+                    Text('ساب‌لینک', style: TextStyle(color: p.accent2, fontWeight: FontWeight.bold, fontSize: 12.5)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
             // دکمه منوی افزودن
             PopupMenuButton<String>(
               tooltip: 'افزودن کانفیگ',
@@ -1695,6 +1933,82 @@ class _LocationsPageState extends State<LocationsPage> {
                   builder: (context, list, _) {
                     final sid = Store.serverId;
 
+                    if (list.isEmpty) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+                        children: [
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(22),
+                                    decoration: BoxDecoration(
+                                      color: p.accent.withOpacity(0.12),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: p.accent.withOpacity(0.3), width: 1.5),
+                                    ),
+                                    child: Icon(Icons.wifi_tethering_rounded, color: p.accent2, size: 54),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  Text(
+                                    'هیچ سرور یا کانفیگی موجود نیست',
+                                    style: TextStyle(color: p.text, fontSize: 17, fontWeight: FontWeight.w800),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'برای شروع، لینک سابسکریپشن خود را وارد کنید تا لیست کانفیگ‌ها به‌صورت خودکار اضافه شود، یا کانفیگ‌ها را از کلیپ‌بورد اضافه نمایید.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: p.sub, fontSize: 13, height: 1.5),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  SizedBox(
+                                    width: 270,
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: p.accent,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 13),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                        elevation: 4,
+                                      ),
+                                      icon: const Icon(Icons.add_link_rounded, size: 20),
+                                      label: const Text('افزودن لینک سابسکریپشن (Sub)',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                                      onPressed: () => _addSubscriptionDialog(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: 270,
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: p.text,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        side: BorderSide(color: p.border.withOpacity(0.5)),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      ),
+                                      icon: const Icon(Icons.content_paste_go_rounded, size: 18),
+                                      label: const Text('چسباندن از کلیپ‌بورد', style: TextStyle(fontSize: 13)),
+                                      onPressed: _importFromClipboard,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (_busy)
+                            const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                        ],
+                      );
+                    }
+
                     // فیلتر کردن کانفیگ‌ها
                     var filtered = list.where((c) {
                       if (_searchQuery.isNotEmpty) {
@@ -1746,7 +2060,7 @@ class _LocationsPageState extends State<LocationsPage> {
                               const SizedBox(height: 12),
                               Text('کانفیگی یافت نشد', style: TextStyle(color: p.text, fontSize: 14, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
-                              Text('از دکمه «+» بالا برای افزودن از کلیپ‌بورد یا سابسکریپشن استفاده کنید',
+                              Text('کانفیگی با این مشخصات جستجو وجود ندارد',
                                   textAlign: TextAlign.center, style: TextStyle(color: p.sub, fontSize: 12)),
                             ],
                           ),

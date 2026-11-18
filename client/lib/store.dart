@@ -59,14 +59,31 @@ class Store {
     final rawList = _p.getString('configs');
     if (rawList != null) {
       try {
-        configs.value = (jsonDecode(rawList) as List).map((e) => (e as Map).cast<String, dynamic>()).toList();
+        final parsed = (jsonDecode(rawList) as List).map((e) => (e as Map).cast<String, dynamic>()).toList();
+        // پاکسازی کامل کانفیگ‌های پیش‌فرض قدیمی/فیک با آیپی 16.171.159.75
+        configs.value = parsed.where((c) {
+          final id = '${c['id'] ?? ''}';
+          final link = '${c['link'] ?? ''}';
+          if (id.startsWith('default-') || link.contains('16.171.159.75')) return false;
+          if (link.isEmpty) return false;
+          return true;
+        }).toList();
+        await _p.setString('configs', jsonEncode(configs.value));
       } catch (_) {}
     }
     if (rawList == null && configs.value.isEmpty) configs.value = _defaults();
     final raw = _p.getString('config');
     if (raw != null) {
       try {
-        config.value = jsonDecode(raw) as Map<String, dynamic>;
+        final c = jsonDecode(raw) as Map<String, dynamic>;
+        final id = '${c['id'] ?? ''}';
+        final link = '${c['link'] ?? ''}';
+        if (id.startsWith('default-') || link.contains('16.171.159.75') || link.isEmpty) {
+          config.value = null;
+          await _p.remove('config');
+        } else {
+          config.value = c;
+        }
       } catch (_) {}
     }
     applySelection();
@@ -78,7 +95,7 @@ class Store {
     }
   }
 
-  static List<Map<String, dynamic>> _defaults() => kDefaultConfigs.map((e) => Map<String, dynamic>.from(e)).toList();
+  static List<Map<String, dynamic>> _defaults() => [];
 
   static String get deviceId => _p.getString('deviceId')!;
 
@@ -142,8 +159,20 @@ class Store {
         sel = configs.value.first;
       }
     }
+    if (sel != null) {
+      final id = '${sel['id'] ?? ''}';
+      final link = '${sel['link'] ?? ''}';
+      if (id.startsWith('default-') || link.contains('16.171.159.75') || link.isEmpty) {
+        sel = configs.value.isNotEmpty ? configs.value.first : null;
+      }
+    }
     config.value = sel;
     fetched.value = sel != null;
+    if (sel != null) {
+      _p.setString('config', jsonEncode(sel));
+    } else {
+      _p.remove('config');
+    }
   }
 
   static List<Map<String, dynamic>> candidates() {

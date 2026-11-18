@@ -84,10 +84,15 @@ String cfgTitle(Map<String, dynamic> c) {
   final isIp = RegExp(r'^[\d.:\[\]a-fA-F]+$').hasMatch(n) && n.contains(RegExp(r'[.:]'));
   if (n.isNotEmpty && !isIp) return n;
   final co = '${c['country'] ?? ''}'.trim();
-  if (co.isNotEmpty) return '${flagOf('${c['code'] ?? ''}')} $co';
-  final g = Store.geoCache[Api.hostOf('${c['link'] ?? ''}')];
+  if (co.isNotEmpty && co != 'Custom') return '${flagOf('${c['code'] ?? ''}')} $co';
+  final host = Api.hostOf('${c['link'] ?? ''}');
+  final g = Store.geoCache[host];
   if (g is List && g.length == 2 && '${g[0]}'.isNotEmpty) return '${flagOf('${g[1]}')} ${g[0]}';
-  return 'در حال تشخیص لوکیشن...';
+  if (host.isNotEmpty && !host.contains('16.171.159.75')) return host;
+  final subTag = '${c['subTag'] ?? ''}'.trim();
+  final proto = '${c['protocol'] ?? 'Server'}'.toUpperCase();
+  if (subTag.isNotEmpty) return '$subTag ($proto)';
+  return '$proto Server';
 }
 
 class Api {
@@ -744,10 +749,13 @@ class Api {
   static Future<String?> fetchSubscription(String url, {String? proxy}) async {
     final c = HttpClient();
     c.connectionTimeout = const Duration(seconds: 12);
+    c.badCertificateCallback = (cert, host, port) => true;
     if (proxy != null && proxy.isNotEmpty) c.findProxy = (_) => 'PROXY $proxy';
     try {
       final req = await c.getUrl(Uri.parse(url.trim()));
       req.headers.set('User-Agent', 'v2rayN/6.45 (NEXORA Client)');
+      req.followRedirects = true;
+      req.maxRedirects = 5;
       final res = await req.close().timeout(const Duration(seconds: 15));
       if (res.statusCode >= 200 && res.statusCode < 400) {
         final body = await res.transform(utf8.decoder).join();
@@ -767,15 +775,21 @@ class Api {
     if (text.isEmpty) return [];
 
     // اگر کل متن بیس۶۴ سابسکریپشن بود، دیکود شود
-    if (!text.contains('://') && text.length > 20) {
+    if (!text.contains('://') && text.length > 10) {
       try {
-        final b = text.replaceAll('-', '+').replaceAll('_', '/');
-        final decoded = utf8.decode(base64.decode(base64.normalize(b)));
+        final cleaned = text.replaceAll(RegExp(r'\s+'), '').replaceAll('-', '+').replaceAll('_', '/');
+        final decoded = utf8.decode(base64.decode(base64.normalize(cleaned)));
         if (decoded.contains('://')) text = decoded;
-      } catch (_) {}
+      } catch (_) {
+        try {
+          final cleaned = text.replaceAll(RegExp(r'\s+'), '').replaceAll('-', '+').replaceAll('_', '/');
+          final decoded = latin1.decode(base64.decode(base64.normalize(cleaned)));
+          if (decoded.contains('://')) text = decoded;
+        } catch (_) {}
+      }
     }
 
-    final reg = RegExp(r'(vless|vmess|trojan|ss|shadowsocks|socks5|socks)://[^\s]+', caseSensitive: false);
+    final reg = RegExp(r'(vless|vmess|trojan|ss|shadowsocks|socks5|socks)://[^\s<>"]+', caseSensitive: false);
     final matches = reg.allMatches(text);
     final results = <Map<String, dynamic>>[];
     final now = DateTime.now().millisecondsSinceEpoch;
