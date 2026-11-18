@@ -638,6 +638,16 @@ class _HomePageState extends State<HomePage> {
           },
         );
 
+        final note = ValueListenableBuilder<String>(
+          valueListenable: VpnService.I.note,
+          builder: (context, n, _) => n.isEmpty
+              ? const SizedBox(height: 8)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 4),
+                  child: Center(child: Text(n, style: TextStyle(color: p.sub, fontSize: 12))),
+                ),
+        );
+
         final connectHero = Panel(
           padding: EdgeInsets.symmetric(vertical: wide ? 28 : 22, horizontal: 16),
           child: Column(
@@ -750,16 +760,6 @@ class _HomePageState extends State<HomePage> {
               note,
             ],
           ),
-        );
-
-        final note = ValueListenableBuilder<String>(
-          valueListenable: VpnService.I.note,
-          builder: (context, n, _) => n.isEmpty
-              ? const SizedBox(height: 8)
-              : Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 4),
-                  child: Center(child: Text(n, style: TextStyle(color: p.sub, fontSize: 12))),
-                ),
         );
 
         final speeds = !on ? const SizedBox.shrink() : TrafficCard(
