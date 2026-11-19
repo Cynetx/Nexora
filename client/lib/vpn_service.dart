@@ -70,7 +70,6 @@ class VpnService with WidgetsBindingObserver {
   final ValueNotifier<List<StepView>> steps = ValueNotifier(const []);
   final ValueNotifier<List<DnsResult>> dnsResults = ValueNotifier(const []);
   final ValueNotifier<List<PingRes>> pingResults = ValueNotifier(const []);
-  final _Sem _winSem = _Sem(8);
   final _Sem _pingSem = _Sem(16);
   int _pingEpoch = 0;
   final Set<Process> _pingProcs = {};
@@ -563,7 +562,7 @@ class VpnService with WidgetsBindingObserver {
     var ms = -1;
     try {
       // محافظ قفل‌شدن: اگر فراخوانی بومی/هسته جواب ندهد، worker برای همیشه گیر نمی‌کند
-      final Future<int> f = Platform.isAndroid ? _android.delay(link, info.outbound!) : (_desktop ? _winDelay(link) : Api.pingLink(link));
+      final Future<int> f = Platform.isAndroid ? _android.delay(link, info.outbound!) : (_desktop ? _winDelay(link, id: id) : Api.pingLink(link));
       // راه‌اندازی هسته + یک درخواست HTTP کامل؛ ۸ ثانیه برای دیدن پاسخ کافی است
       ms = await f.timeout(const Duration(seconds: 8), onTimeout: () => -1);
     } catch (_) {
@@ -583,36 +582,92 @@ class VpnService with WidgetsBindingObserver {
     return ms;
   }
 
-  Future<int> _freePort() async {
-    final s = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    final p = s.port;
-    await s.close();
-    return p;
+  Future<int> _findFreePortRange(int count, {int startPort = 11820}) async {
+    for (var p = startPort; p < 60000; p += max(count, 1) + 5) {
+      var allFree = true;
+      final sockets = <ServerSocket>[];
+      final checkCount = min(count, 16);
+      for (var i = 0; i < checkCount; i++) {
+        try {
+          final s = await ServerSocket.bind(InternetAddress.loopbackIPv4, p + i);
+          sockets.add(s);
+        } catch (_) {
+          allFree = false;
+          break;
+        }
+      }
+      for (final s in sockets) {
+        await s.close();
+      }
+      if (allFree) return p;
+    }
+    return startPort;
   }
 
-  Future<int> _winDelay(String link) async {
+  /// پینگ تجمیعی سرورها روی دسکتاپ با اجرای یک پردازه واحد Xray (مشابه v2rayN)
+  /// تمام کانفیگ‌ها به صورت همزمان روی پورت‌های محلی مجزا تست می‌شوند تا از اسپاون پروسه‌های متعدد و خطای تداخل پورت جلوگیری شود.
+  Future<Map<String, int>> batchPingDesktop(
+    List<Map<String, dynamic>> configs, {
+    void Function(Map<String, dynamic> cfg, int ms)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    final results = <String, int>{};
+    if (configs.isEmpty) return results;
+
+    final valid = <Map<String, dynamic>>[];
+    for (final c in configs) {
+      final link = '${c['link'] ?? ''}';
+      final id = '${c['id'] ?? link}';
+      final info = parseLink(link);
+      if (info.outbound == null) {
+        if (id.isNotEmpty) {
+          pingCache[id] = -1;
+          results[id] = -1;
+        }
+        onProgress?.call(c, -1);
+      } else {
+        valid.add(c);
+      }
+    }
+
+    if (valid.isEmpty) return results;
+
     final exe = _xrayExe;
-    if (!File(exe).existsSync()) return -1;
+    if (!File(exe).existsSync()) {
+      for (final c in valid) {
+        final link = '${c['link'] ?? ''}';
+        final id = '${c['id'] ?? link}';
+        final ms = await Api.pingLink(link);
+        if (id.isNotEmpty) {
+          pingCache[id] = ms;
+          results[id] = ms;
+        }
+        onProgress?.call(c, ms);
+      }
+      pingCacheRev.value++;
+      return results;
+    }
+
     final epoch = _pingEpoch;
-    await _winSem.acquire();
+    final basePort = await _findFreePortRange(valid.length);
+    final conf = buildBatchXrayConfig(valid, basePort: basePort);
+    if (conf == null) return results;
+
+    final f = File(_tmpFile('nexora_batch_${basePort}_${DateTime.now().microsecondsSinceEpoch}.json'));
     Process? p;
-    File? f;
     try {
-      if (epoch != _pingEpoch) return -1;
-      final hp = await _freePort();
-      final conf = buildXrayConfig(link, httpPort: hp, socksPort: 0, apiPort: 0, enableFragment: false);
-      if (conf == null) return -1;
-      f = File(_tmpFile('nexora_ping_${hp}_${DateTime.now().microsecondsSinceEpoch}.json'));
       await f.writeAsString(jsonEncode(conf));
+      if (epoch != _pingEpoch || (isCancelled != null && isCancelled())) return results;
       p = await Process.start(exe, ['run', '-c', f.path], workingDirectory: _xrayDir);
       _pingProcs.add(p);
       p.stdout.listen((_) {});
       p.stderr.listen((_) {});
+
       var up = false;
-      for (var i = 0; i < 70; i++) {
-        if (epoch != _pingEpoch) return -1;
+      for (var i = 0; i < 50; i++) {
+        if (epoch != _pingEpoch || (isCancelled != null && isCancelled())) break;
         try {
-          final s = await Socket.connect('127.0.0.1', hp, timeout: const Duration(milliseconds: 150));
+          final s = await Socket.connect('127.0.0.1', basePort, timeout: const Duration(milliseconds: 100));
           s.destroy();
           up = true;
           break;
@@ -620,18 +675,64 @@ class VpnService with WidgetsBindingObserver {
           await Future.delayed(const Duration(milliseconds: 40));
         }
       }
-      if (!up) return -1;
-      return await Api.delayVia('127.0.0.1:$hp', timeoutSec: 6);
+
+      if (!up) {
+        for (final c in valid) {
+          if (epoch != _pingEpoch || (isCancelled != null && isCancelled())) break;
+          final link = '${c['link'] ?? ''}';
+          final id = '${c['id'] ?? link}';
+          final ms = await Api.pingLink(link, timeoutSec: 3);
+          if (id.isNotEmpty) {
+            pingCache[id] = ms;
+            results[id] = ms;
+          }
+          onProgress?.call(c, ms);
+        }
+        pingCacheRev.value++;
+        return results;
+      }
+
+      final futures = <Future<void>>[];
+      for (var i = 0; i < valid.length; i++) {
+        final c = valid[i];
+        final link = '${c['link'] ?? ''}';
+        final id = '${c['id'] ?? link}';
+        final port = basePort + i;
+
+        futures.add(() async {
+          if (epoch != _pingEpoch || (isCancelled != null && isCancelled())) return;
+          var ms = await Api.delayVia('127.0.0.1:$port', timeoutSec: 5);
+          if (ms < 1) {
+            ms = await Api.pingLink(link, timeoutSec: 3);
+          }
+          if (epoch == _pingEpoch) {
+            if (id.isNotEmpty) {
+              pingCache[id] = ms;
+              results[id] = ms;
+            }
+            onProgress?.call(c, ms);
+          }
+        }());
+      }
+
+      await Future.wait(futures);
+      pingCacheRev.value++;
     } catch (_) {
-      return -1;
     } finally {
       if (p != null) _pingProcs.remove(p);
       p?.kill();
       try {
-        f?.deleteSync();
+        f.deleteSync();
       } catch (_) {}
-      _winSem.release();
     }
+
+    return results;
+  }
+
+  Future<int> _winDelay(String link, {String? id}) async {
+    final key = id ?? link;
+    final res = await batchPingDesktop([{'link': link, 'id': key}]);
+    return res[key] ?? -1;
   }
 
   Future<String?> _attempt(Map<String, dynamic> cfg) async {

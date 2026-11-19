@@ -1437,11 +1437,36 @@ class _LocationsPageState extends State<LocationsPage> {
       }
 
       final firstBudget = Duration(seconds: (list.length / 16).ceil() * 9 + 12);
-      await runPass(list, 16, true).timeout(firstBudget, onTimeout: () {});
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        await VpnService.I.batchPingDesktop(
+          list,
+          onProgress: (c, ms) {
+            if (ctl.cancelRequested) return;
+            var nm = cfgTitle(c);
+            if (nm.length > 16) nm = nm.substring(0, 16);
+            ctl.addPing(PingRes(nm, ms));
+            record(c, ms);
+          },
+          isCancelled: () => ctl.cancelRequested,
+        ).timeout(firstBudget, onTimeout: () => <String, int>{});
+      } else {
+        await runPass(list, 16, true).timeout(firstBudget, onTimeout: () {});
+      }
       if (!ctl.cancelRequested && best == null) {
         final failed = [for (final c in list) if (!Api.validPing(_ms['${c['id']}'] ?? -1)) c];
         if (failed.isNotEmpty) {
-          await runPass(failed.take(6).toList(), 6, false).timeout(const Duration(seconds: 10), onTimeout: () {});
+          if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+            await VpnService.I.batchPingDesktop(
+              failed.take(6).toList(),
+              onProgress: (c, ms) {
+                if (ctl.cancelRequested) return;
+                record(c, ms);
+              },
+              isCancelled: () => ctl.cancelRequested,
+            ).timeout(const Duration(seconds: 10), onTimeout: () => <String, int>{});
+          } else {
+            await runPass(failed.take(6).toList(), 6, false).timeout(const Duration(seconds: 10), onTimeout: () {});
+          }
         }
       }
       if (ctl.cancelRequested) return 'cancelled';

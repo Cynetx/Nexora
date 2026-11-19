@@ -291,49 +291,73 @@ class Api {
     return min(a, b);
   }
 
-  // پینگ واقعی (Relay): یک درخواست HTTP کامل از داخل پراکسی/هسته‌ی کانفیگ؛ نه TCP ساده.
-  // زمان کل درخواست تا رسیدن پاسخ generate_204 به میلی‌ثانیه، یا -1 اگر شکست خورد.
-  static Future<int> delayVia(String proxy, {int timeoutSec = 6}) {
+  // پینگ واقعی (Relay): یک درخواست HTTP دقیق تا رسیدن پاسخ generate_204 از داخل پراکسی/هسته (مشابه v2rayN)
+  // بدون تحمیل ریدایرکت‌های تکراری و با پذیرش هر پاسخ معتبر، زمان TTFB را به‌صورت مستقیم می‌سنجد.
+  static Future<int> delayVia(String proxy, {int timeoutSec = 5}) {
     const urls = [
-      'http://www.google.com/generate_204',
       'https://www.google.com/generate_204',
-      'http://www.gstatic.com/generate_204',
       'http://cp.cloudflare.com/generate_204',
+      'https://www.gstatic.com/generate_204',
     ];
     final done = Completer<int>();
-    var failed = 0;
-    void start(String u) {
-      final sw = Stopwatch()..start();
-      _request('GET', u, proxy: proxy, timeout: timeoutSec).then<void>((_) {
-        if (!done.isCompleted) done.complete(max(1, sw.elapsedMilliseconds));
-      }, onError: (Object _) {
-        failed++;
-        if (failed >= urls.length && !done.isCompleted) done.complete(-1);
+    var pending = urls.length;
+
+    for (var i = 0; i < urls.length; i++) {
+      final u = urls[i];
+      final delay = i == 0 ? Duration.zero : Duration(milliseconds: 300 * i);
+      Timer(delay, () async {
+        if (done.isCompleted) return;
+        final c = HttpClient();
+        c.connectionTimeout = Duration(seconds: timeoutSec);
+        c.badCertificateCallback = (cert, host, port) => true;
+        c.findProxy = (_) => 'PROXY $proxy';
+        final sw = Stopwatch()..start();
+        try {
+          final req = await c.getUrl(Uri.parse(u));
+          req.followRedirects = false;
+          final res = await req.close().timeout(Duration(seconds: timeoutSec));
+          sw.stop();
+          if (res.statusCode < 400 && !done.isCompleted) {
+            done.complete(max(1, sw.elapsedMilliseconds));
+          } else {
+            throw HttpException('${res.statusCode}');
+          }
+        } catch (_) {
+          pending--;
+          if (pending <= 0 && !done.isCompleted) {
+            done.complete(-1);
+          }
+        } finally {
+          c.close(force: true);
+        }
       });
     }
 
-    start(urls[0]);
-    Timer(const Duration(milliseconds: 600), () {
-      if (!done.isCompleted) start(urls[1]);
-    });
-    Timer(const Duration(milliseconds: 1200), () {
-      if (!done.isCompleted) start(urls[2]);
-    });
-    Timer(const Duration(milliseconds: 1800), () {
-      if (!done.isCompleted) start(urls[3]);
-    });
-    return done.future;
+    return done.future.timeout(Duration(seconds: timeoutSec + 1), onTimeout: () => -1);
   }
 
   // تأخیر واقعی اینترنت از داخل تونل (میلی‌ثانیه) یا -1
   static Future<int> reachMs({String? proxy}) async {
-    for (final u in ['http://cp.cloudflare.com/generate_204', 'https://www.gstatic.com/generate_204']) {
+    for (final u in [
+      'https://www.google.com/generate_204',
+      'http://cp.cloudflare.com/generate_204',
+      'https://www.gstatic.com/generate_204'
+    ]) {
+      final c = HttpClient();
+      c.connectionTimeout = const Duration(seconds: 5);
+      c.badCertificateCallback = (cert, host, port) => true;
+      if (proxy != null) c.findProxy = (_) => 'PROXY $proxy';
       final sw = Stopwatch()..start();
       try {
-        await _request('GET', u, proxy: proxy, timeout: 8);
+        final req = await c.getUrl(Uri.parse(u));
+        req.followRedirects = false;
+        final res = await req.close().timeout(const Duration(seconds: 5));
         sw.stop();
-        return max(1, sw.elapsedMilliseconds);
-      } catch (_) {}
+        if (res.statusCode < 400) return max(1, sw.elapsedMilliseconds);
+      } catch (_) {
+      } finally {
+        c.close(force: true);
+      }
     }
     return -1;
   }

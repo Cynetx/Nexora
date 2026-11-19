@@ -672,3 +672,77 @@ Map<String, dynamic>? buildXrayConfig(
 // c3BpZGVyWA== -> نام فیلد JSON هسته؛  c3B4 -> پارامتر قدیمی در لینک‌ها (پارامتر جدید: nex)
 final String _realityPathKey = utf8.decode(base64Decode('c3BpZGVyWA=='));
 final String _legacyPathKey = utf8.decode(base64Decode('c3B4'));
+
+/// ساخت کانفیگ تجمیعی Xray برای تست همزمان پینگ ده‌ها سرور با یک پروسه واحد (دقیقاً مشابه v2rayN)
+/// هر سرور روی یک پورت محلی اختصاصی گوش می‌دهد و بدون اسپاون چندگانه پردازه یا تداخل پورت سنجیده می‌شود.
+Map<String, dynamic>? buildBatchXrayConfig(
+  List<Map<String, dynamic>> configs, {
+  int basePort = 11820,
+}) {
+  if (configs.isEmpty) return null;
+
+  final inbounds = <Map<String, dynamic>>[];
+  final outbounds = <Map<String, dynamic>>[];
+  final rules = <Map<String, dynamic>>[];
+
+  for (var i = 0; i < configs.length; i++) {
+    final c = configs[i];
+    final link = '${c['link'] ?? ''}';
+    final info = parseLink(link);
+    if (info.outbound == null) continue;
+
+    final port = basePort + i;
+    final inTag = 'mixed_$port';
+    final outTag = 'proxy_$port';
+
+    inbounds.add({
+      'tag': inTag,
+      'listen': '127.0.0.1',
+      'port': port,
+      'protocol': 'mixed',
+      'settings': {},
+      'sniffing': {
+        'enabled': true,
+        'destOverride': ['http', 'tls', 'quic'],
+        'routeOnly': false,
+      },
+    });
+
+    final ob = Map<String, dynamic>.from(info.outbound!);
+    ob['tag'] = outTag;
+    ob.remove('dialerProxy');
+    ob.remove('proxySettings');
+    outbounds.add(ob);
+
+    rules.add({
+      'type': 'field',
+      'inboundTag': [inTag],
+      'outboundTag': outTag,
+    });
+  }
+
+  if (outbounds.isEmpty) return null;
+
+  outbounds.add({'tag': 'direct', 'protocol': 'freedom', 'settings': {}});
+  outbounds.add({'tag': 'block', 'protocol': 'blackhole', 'settings': {}});
+
+  return {
+    'log': {'loglevel': 'warning'},
+    'dns': {
+      'servers': [
+        'https://1.1.1.1/dns-query',
+        'https://8.8.8.8/dns-query',
+        '1.1.1.1',
+        '8.8.8.8',
+        'localhost',
+      ],
+      'queryStrategy': 'UseIPv4',
+    },
+    'inbounds': inbounds,
+    'outbounds': outbounds,
+    'routing': {
+      'domainStrategy': 'IPIfNonMatch',
+      'rules': rules,
+    },
+  };
+}
