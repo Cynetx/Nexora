@@ -362,7 +362,7 @@ class GlobePainter extends CustomPainter {
         : (busy ? Colors.amber : c);
 
     // ۱. هاله نورانی و امبینت نرم - کاملاً محصور در داخل کادر کارت
-    final maxRadius = (size.height / 2 - 10.0).clamp(72.0, 84.0);
+    final maxRadius = (size.height / 2 - 12.0).clamp(72.0, 80.0);
     final radialPaint = Paint()
       ..shader = RadialGradient(
         center: Alignment.center,
@@ -996,7 +996,7 @@ class _RingsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final ctr = size.center(Offset.zero);
-    final maxR = (size.height / 2 - 8.0).clamp(70.0, 86.0);
+    final maxR = (size.height / 2 - 12.0).clamp(70.0, 80.0);
     const minR = 64.0;
     for (var i = 0; i < 3; i++) {
       final k = (t + i / 3) % 1.0;
