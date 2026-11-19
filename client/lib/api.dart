@@ -279,11 +279,11 @@ class Api {
     }
   }
 
-  // پینگ معتبر: بین ۱ تا ۳۰۰۰ میلی‌ثانیه. صفر، منفی یا بیشتر از ۳ ثانیه یعنی نامعتبر.
-  static bool validPing(int ms) => ms >= 1 && ms <= 3000;
+  // پینگ معتبر: بین ۱ تا ۴۵۰۰ میلی‌ثانیه. صفر، منفی یا بیشتر از ۴.۵ ثانیه یعنی نامعتبر.
+  static bool validPing(int ms) => ms >= 1 && ms <= 4500;
 
   // پینگ واقعی (دو اتصال TCP پشت سر هم به پورت سرور)؛ اگر هرکدام شکست بخورد یا عدد نامعتبر باشد -1
-  static Future<int> realPing(String link, {int timeoutSec = 3}) async {
+  static Future<int> realPing(String link, {int timeoutSec = 4}) async {
     final a = await pingLink(link, timeoutSec: timeoutSec);
     if (!validPing(a)) return -1;
     final b = await pingLink(link, timeoutSec: timeoutSec);
@@ -293,10 +293,13 @@ class Api {
 
   // پینگ واقعی (Relay): یک درخواست HTTP کامل از داخل پراکسی/هسته‌ی کانفیگ؛ نه TCP ساده.
   // زمان کل درخواست تا رسیدن پاسخ generate_204 به میلی‌ثانیه، یا -1 اگر شکست خورد.
-  // سریع: پینگ بالای ۳ ثانیه ویلید نیست، پس Timeout فقط ۴ ثانیه است؛ آدرس دوم (پشتیبان) فقط اگر اولی
-  // ~۹۰۰ms جواب نداد موازی شروع می‌شود و هر کدام زودتر جواب داد برنده است (به‌جای ۸+۸ ثانیه انتظار پشت‌سرهم).
-  static Future<int> delayVia(String proxy, {int timeoutSec = 4}) {
-    const urls = ['http://cp.cloudflare.com/generate_204', 'http://www.gstatic.com/generate_204'];
+  static Future<int> delayVia(String proxy, {int timeoutSec = 6}) {
+    const urls = [
+      'http://www.google.com/generate_204',
+      'https://www.google.com/generate_204',
+      'http://www.gstatic.com/generate_204',
+      'http://cp.cloudflare.com/generate_204',
+    ];
     final done = Completer<int>();
     var failed = 0;
     void start(String u) {
@@ -310,8 +313,14 @@ class Api {
     }
 
     start(urls[0]);
-    Timer(const Duration(milliseconds: 900), () {
+    Timer(const Duration(milliseconds: 600), () {
       if (!done.isCompleted) start(urls[1]);
+    });
+    Timer(const Duration(milliseconds: 1200), () {
+      if (!done.isCompleted) start(urls[2]);
+    });
+    Timer(const Duration(milliseconds: 1800), () {
+      if (!done.isCompleted) start(urls[3]);
     });
     return done.future;
   }

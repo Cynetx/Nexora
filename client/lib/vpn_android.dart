@@ -100,7 +100,7 @@ class AndroidVpn {
       });
       rules.add({
         'type': 'field',
-        'domain': ['geosite:ir', 'regexp:.*\\.ir\$'],
+        'domain': ['domain:ir', 'regexp:.*\\.ir\$'],
         'outboundTag': 'direct',
       });
     }

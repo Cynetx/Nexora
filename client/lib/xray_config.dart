@@ -403,7 +403,7 @@ Map<String, dynamic> mobileBaseConfig() {
   };
 }
 
-// بلوک DNS با DoH رمزنگاری‌شده محلی (جلوگیری از مسموم‌سازی پورت ۵۳ در ایران و نشت IPv6)
+// بلوک DNS رمزنگاری‌شده (عبور از تونل برای جلوگیری از مسموم‌سازی پورت ۵۳ در ایران و نشت IPv6)
 Map<String, dynamic> dnsBlock(List<String> servers) {
   final clean = <String>[];
   for (final s in servers) {
@@ -411,20 +411,20 @@ Map<String, dynamic> dnsBlock(List<String> servers) {
     if (t.isEmpty) continue;
     if (t.startsWith('http://') ||
         t.startsWith('https://') ||
-        t.startsWith('https+local://') ||
         t.startsWith('tcp://') ||
         t.startsWith('quic://')) {
       clean.add(t);
     } else {
-      clean.add('https+local://$t/dns-query');
+      clean.add('https://$t/dns-query');
     }
   }
   return {
     'servers': [
       ...clean,
-      'https+local://1.1.1.1/dns-query',
-      'https+local://8.8.8.8/dns-query',
-      'https+local://9.9.9.9/dns-query',
+      'https://1.1.1.1/dns-query',
+      'https://8.8.8.8/dns-query',
+      '1.1.1.1',
+      '8.8.8.8',
     ],
     'queryStrategy': 'UseIPv4',
   };
@@ -518,10 +518,11 @@ Map<String, dynamic>? buildXrayConfig(
     'log': {'loglevel': 'warning'},
     'stats': {},
     'dns': dnsBlock(dns),
-    'api': {
-      'tag': 'api',
-      'services': ['StatsService']
-    },
+    if (apiPort > 0)
+      'api': {
+        'tag': 'api',
+        'services': ['StatsService']
+      },
     'policy': {
       'levels': {
         '0': {
@@ -564,40 +565,43 @@ Map<String, dynamic>? buildXrayConfig(
             'routeOnly': false,
           }
         },
-      {
-        'tag': 'api',
-        'listen': '127.0.0.1',
-        'port': apiPort,
-        'protocol': 'dokodemo-door',
-        'settings': {'address': '127.0.0.1'}
-      }
+      if (apiPort > 0)
+        {
+          'tag': 'api',
+          'listen': '127.0.0.1',
+          'port': apiPort,
+          'protocol': 'dokodemo-door',
+          'settings': {'address': '127.0.0.1'}
+        }
     ],
     'outbounds': [
       if (upOut != null) upOut,
       proxyOut,
-      {
-        'tag': 'fragment',
-        'protocol': 'freedom',
-        'settings': {
-          'domainStrategy': 'AsIs',
-          'fragment': {
-            'packets': '1-3',
-            'length': '100-200',
-            'interval': '10-20',
+      if (enableFragment && !isUdpKcp)
+        {
+          'tag': 'fragment',
+          'protocol': 'freedom',
+          'settings': {
+            'domainStrategy': 'AsIs',
+            'fragment': {
+              'packets': '1-3',
+              'length': '100-200',
+              'interval': '10-20',
+            }
           }
-        }
-      },
+        },
       {'tag': 'direct', 'protocol': 'freedom', 'settings': {}},
       {'tag': 'block', 'protocol': 'blackhole', 'settings': {}},
     ],
     'routing': {
       'domainStrategy': 'IPIfNonMatch',
       'rules': [
-        {
-          'type': 'field',
-          'inboundTag': ['api'],
-          'outboundTag': 'api'
-        },
+        if (apiPort > 0)
+          {
+            'type': 'field',
+            'inboundTag': ['api'],
+            'outboundTag': 'api'
+          },
         // سپر محافظتی WebRTC: مسدودسازی پورت‌ها و دامنه‌های STUN/TURN برای جلوگیری از نشت آی‌پی ایران
         {
           'type': 'field',
@@ -632,7 +636,7 @@ Map<String, dynamic>? buildXrayConfig(
         if (routingMode == 'bypass_lan_iran')
           {
             'type': 'field',
-            'domain': ['geosite:ir', 'regexp:.*\\.ir\$'],
+            'domain': ['domain:ir', 'regexp:.*\\.ir\$'],
             'outboundTag': 'direct',
           },
         // سرویس‌های فوق حساس: تضمین عبور بدون نشت دامنه‌های هوش مصنوعی و کلاد از پروکسی
@@ -654,12 +658,11 @@ Map<String, dynamic>? buildXrayConfig(
           ],
           'outboundTag': primaryTag,
         },
-        if (upOut != null)
-          {
-            'type': 'field',
-            'network': 'tcp,udp',
-            'outboundTag': primaryTag,
-          }
+        {
+          'type': 'field',
+          'network': 'tcp,udp',
+          'outboundTag': primaryTag,
+        },
       ]
     }
   };

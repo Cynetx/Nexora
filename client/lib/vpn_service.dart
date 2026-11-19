@@ -564,12 +564,16 @@ class VpnService with WidgetsBindingObserver {
     try {
       // محافظ قفل‌شدن: اگر فراخوانی بومی/هسته جواب ندهد، worker برای همیشه گیر نمی‌کند
       final Future<int> f = Platform.isAndroid ? _android.delay(link, info.outbound!) : (_desktop ? _winDelay(link) : Api.pingLink(link));
-      // پینگ بالای ۳ ثانیه ویلید نیست؛ ۷ ثانیه (راه‌اندازی هسته + یک درخواست) برای دیدن شکست کافی است
-      ms = await f.timeout(const Duration(seconds: 7), onTimeout: () => -1);
+      // راه‌اندازی هسته + یک درخواست HTTP کامل؛ ۸ ثانیه برای دیدن پاسخ کافی است
+      ms = await f.timeout(const Duration(seconds: 8), onTimeout: () => -1);
     } catch (_) {
       ms = -1;
     } finally {
       _pingSem.release();
+    }
+    // اگر تست پروکسی جواب نداد، به عنوان فال‌بک تست TCP مستقیم انجام می‌دهیم (مشابه Tcping در v2rayN)
+    if (ms < 1) {
+      ms = await Api.pingLink(link, timeoutSec: 4);
     }
     if (epoch != _pingEpoch) return -1;
     if (id != null) {
@@ -596,9 +600,7 @@ class VpnService with WidgetsBindingObserver {
     try {
       if (epoch != _pingEpoch) return -1;
       final hp = await _freePort();
-      final sp = await _freePort();
-      final ap = await _freePort();
-      final conf = buildXrayConfig(link, httpPort: hp, socksPort: sp, apiPort: ap);
+      final conf = buildXrayConfig(link, httpPort: hp, socksPort: 0, apiPort: 0, enableFragment: false);
       if (conf == null) return -1;
       f = File(_tmpFile('nexora_ping_${hp}_${DateTime.now().microsecondsSinceEpoch}.json'));
       await f.writeAsString(jsonEncode(conf));
@@ -619,7 +621,7 @@ class VpnService with WidgetsBindingObserver {
         }
       }
       if (!up) return -1;
-      return await Api.delayVia('127.0.0.1:$hp');
+      return await Api.delayVia('127.0.0.1:$hp', timeoutSec: 6);
     } catch (_) {
       return -1;
     } finally {
