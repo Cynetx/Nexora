@@ -1,13 +1,42 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'splash.dart';
 import 'store.dart';
+import 'vpn_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Store.init();
+
+  // هنگام بستن اپ (Ctrl+C, SIGTERM, یا بستن پنجره) همه پروسه‌های Xray کشته شوند
+  _registerShutdown();
+
   runApp(const App());
+}
+
+void _registerShutdown() {
+  if (Platform.isAndroid || Platform.isIOS) return;
+  void cleanup() {
+    try {
+      VpnService.I.shutdown();
+    } catch (_) {}
+  }
+
+  try {
+    ProcessSignal.sigterm.watch().listen((_) {
+      cleanup();
+      exit(0);
+    });
+  } catch (_) {}
+  try {
+    ProcessSignal.sigint.watch().listen((_) {
+      cleanup();
+      exit(0);
+    });
+  } catch (_) {}
 }
 
 ThemeData _theme(Brightness b) {

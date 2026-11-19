@@ -630,6 +630,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // بستن پنجره: cleanup انجام بشه
+    if (state == AppLifecycleState.detached) {
+      VpnService.I.shutdown();
+      return;
+    }
     // برگشتن به برنامه بعد از دانلود پس‌زمینه: پیام «به‌روزرسانی تکمیل شد»
     if (state == AppLifecycleState.resumed && mounted) promptFinishedUpdate(context);
   }

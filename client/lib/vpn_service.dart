@@ -144,6 +144,11 @@ class VpnService with WidgetsBindingObserver {
   // اگر کاربر وسط ساخت تونل / تست پینگ DNS از برنامه بیرون برود، اتصال برقرار نمی‌شود
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
+    // بستن پنجره یا خروج از برنامه: همه پروسه‌های xray را بکش
+    if (s == AppLifecycleState.detached) {
+      shutdown();
+      return;
+    }
     if (!_connecting || _askingPermission) return;
     if (!Platform.isAndroid) return;
     if (s == AppLifecycleState.paused || s == AppLifecycleState.hidden) {
@@ -253,6 +258,25 @@ class VpnService with WidgetsBindingObserver {
       if (!_reported) return;
       if (g != null) geo.value = g;
     }
+  }
+
+  /// پاکسازی کامل هنگام بستن برنامه: کشتن تمام پروسه‌های xray (پینگ + اتصال) و برگرداندن proxy
+  void shutdown() {
+    // لغو همه پینگ‌های در حال اجرا
+    cancelPings();
+    // کشتن پروسه‌ی اصلی اتصال (VPN)
+    try {
+      _proc?.kill();
+      _proc = null;
+    } catch (_) {}
+    // اطمینان از حذف همه پروسه‌های احتمالی باقی‌مانده
+    if (Platform.isWindows) {
+      Process.runSync('taskkill', ['/F', '/IM', 'xray.exe']);
+    } else {
+      Process.runSync('pkill', ['-9', '-x', 'xray']);
+    }
+    // بازگرداندن تنظیمات پراکسی سیستم
+    _setProxy(false).ignore();
   }
 
   void _cfgChanged() {
@@ -514,17 +538,23 @@ class VpnService with WidgetsBindingObserver {
     _bgPinging = true;
     try {
       await init();
-      var next = 0;
-      Future<void> worker() async {
-        while (!_connecting) {
-          final i = next++;
-          if (i >= list.length) return;
-          final c = list[i];
-          await relayPing('${c['link']}', id: '${c['id']}');
+      if (_connecting) return;
+      if (_desktop) {
+        // روی دسکتاپ: یک پروسه برای همه سرورها (مشابه v2rayN)
+        await batchPingDesktop(list, isCancelled: () => _connecting);
+      } else {
+        // روی اندروید: متد قبلی تک‌تک با API اندروید
+        var next = 0;
+        Future<void> worker() async {
+          while (!_connecting) {
+            final i = next++;
+            if (i >= list.length) return;
+            final c = list[i];
+            await relayPing('${c['link']}', id: '${c['id']}');
+          }
         }
+        await Future.wait([for (var k = 0; k < 8; k++) worker()]);
       }
-
-      await Future.wait([for (var k = 0; k < 8; k++) worker()]);
       pingCacheAt = DateTime.now();
       pingCacheRev.value++;
     } catch (_) {
